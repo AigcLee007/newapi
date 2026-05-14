@@ -8,6 +8,8 @@ upload
 build
 *.db-journal
 logs
+logs-image-async-test/
+data-image-async-test/
 web/default/dist
 web/classic/dist
 web/node_modules

@@ -101,10 +101,45 @@ type TaskPrivateData struct {
 	UpstreamTaskID string `json:"upstream_task_id,omitempty"` // 上游真实 task ID
 	ResultURL      string `json:"result_url,omitempty"`       // 任务成功后的结果 URL（视频地址等）
 	// 计费上下文：用于异步退款/差额结算（轮询阶段读取）
-	BillingSource  string              `json:"billing_source,omitempty"`  // "wallet" 或 "subscription"
-	SubscriptionId int                 `json:"subscription_id,omitempty"` // 订阅 ID，用于订阅退款
-	TokenId        int                 `json:"token_id,omitempty"`        // 令牌 ID，用于令牌额度退款
-	BillingContext *TaskBillingContext `json:"billing_context,omitempty"` // 计费参数快照（用于轮询阶段重新计算）
+	BillingSource  string                 `json:"billing_source,omitempty"`  // "wallet" 或 "subscription"
+	SubscriptionId int                    `json:"subscription_id,omitempty"` // 订阅 ID，用于订阅退款
+	TokenId        int                    `json:"token_id,omitempty"`        // 令牌 ID，用于令牌额度退款
+	BillingContext *TaskBillingContext    `json:"billing_context,omitempty"` // 计费参数快照（用于轮询阶段重新计算）
+	ImageAsync     *ImageAsyncPrivateData `json:"image_async,omitempty"`
+}
+
+type ImageAsyncPrivateData struct {
+	RequestPath      string                   `json:"request_path,omitempty"`
+	Method           string                   `json:"method,omitempty"`
+	ContentType      string                   `json:"content_type,omitempty"`
+	BodyPath         string                   `json:"body_path,omitempty"`
+	BodySHA256       string                   `json:"body_sha256,omitempty"`
+	BodySize         int64                    `json:"body_size,omitempty"`
+	RelayMode        int                      `json:"relay_mode,omitempty"`
+	RelayFormat      string                   `json:"relay_format,omitempty"`
+	WebhookURL       string                   `json:"webhook_url,omitempty"`
+	WebhookAttempts  int                      `json:"webhook_attempts,omitempty"`
+	WebhookDone      bool                     `json:"webhook_done,omitempty"`
+	NextWebhookTime  int64                    `json:"next_webhook_time,omitempty"`
+	IdempotencyKey   string                   `json:"idempotency_key,omitempty"`
+	RequestHash      string                   `json:"request_hash,omitempty"`
+	BillingFinalized bool                     `json:"billing_finalized,omitempty"`
+	BillingRefunded  bool                     `json:"billing_refunded,omitempty"`
+	WorkerNode       string                   `json:"worker_node,omitempty"`
+	Attempt          int                      `json:"attempt,omitempty"`
+	LastError        string                   `json:"last_error,omitempty"`
+	ResultObjects    []ImageAsyncResultObject `json:"result_objects,omitempty"`
+}
+
+type ImageAsyncResultObject struct {
+	Index       int    `json:"index"`
+	Provider    string `json:"provider,omitempty"`
+	Bucket      string `json:"bucket,omitempty"`
+	ObjectKey   string `json:"object_key,omitempty"`
+	URL         string `json:"url,omitempty"`
+	ContentType string `json:"content_type,omitempty"`
+	Size        int64  `json:"size,omitempty"`
+	Source      string `json:"source,omitempty"`
 }
 
 // TaskBillingContext 记录任务提交时的计费参数，以便轮询阶段可以重新计算额度。
@@ -307,7 +342,11 @@ func GetAllUnFinishSyncTasks(limit int) []*Task {
 	var tasks []*Task
 	var err error
 	// get all tasks progress is not 100%
-	err = DB.Where("progress != ?", "100%").Where("status != ?", TaskStatusFailure).Where("status != ?", TaskStatusSuccess).Limit(limit).Order("id").Find(&tasks).Error
+	err = DB.Where("progress != ?", "100%").
+		Where("status != ?", TaskStatusFailure).
+		Where("status != ?", TaskStatusSuccess).
+		Where("NOT (platform = ? AND action = ?)", constant.TaskPlatformSyncTask, constant.ImageAsyncAction).
+		Limit(limit).Order("id").Find(&tasks).Error
 	if err != nil {
 		return nil
 	}

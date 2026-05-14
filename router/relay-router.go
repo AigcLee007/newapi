@@ -79,6 +79,7 @@ func SetRelayRouter(router *gin.Engine) {
 			controller.Relay(c, types.RelayFormatOpenAIRealtime)
 		})
 	}
+	relayV1Router.GET("/images/tasks/:task_id", controller.RelayImageAsyncFetch)
 	{
 		//http router
 		httpRouter := relayV1Router.Group("")
@@ -107,12 +108,24 @@ func SetRelayRouter(router *gin.Engine) {
 
 		// image related routes
 		httpRouter.POST("/edits", func(c *gin.Context) {
+			if controller.IsImageAsyncRequest(c) {
+				controller.RelayImageAsyncSubmit(c)
+				return
+			}
 			controller.Relay(c, types.RelayFormatOpenAIImage)
 		})
 		httpRouter.POST("/images/generations", func(c *gin.Context) {
+			if controller.IsImageAsyncRequest(c) {
+				controller.RelayImageAsyncSubmit(c)
+				return
+			}
 			controller.Relay(c, types.RelayFormatOpenAIImage)
 		})
 		httpRouter.POST("/images/edits", func(c *gin.Context) {
+			if controller.IsImageAsyncRequest(c) {
+				controller.RelayImageAsyncSubmit(c)
+				return
+			}
 			controller.Relay(c, types.RelayFormatOpenAIImage)
 		})
 

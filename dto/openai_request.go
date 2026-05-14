@@ -3,6 +3,8 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
+	"mime"
+	"path/filepath"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -386,7 +388,11 @@ func (m *MediaContent) ToFileSource() types.FileSource {
 		if file == nil || file.FileData == "" {
 			return nil
 		}
-		return types.NewFileSourceFromData(file.FileData, "")
+		mimeType := ""
+		if file.FileName != "" {
+			mimeType = fileMimeType(file.FileName)
+		}
+		return types.NewFileSourceFromData(file.FileData, mimeType)
 	case ContentTypeVideoUrl:
 		video := m.GetVideoUrl()
 		if video == nil || video.Url == "" {
@@ -416,6 +422,29 @@ type MessageFile struct {
 	FileName string `json:"filename,omitempty"`
 	FileData string `json:"file_data,omitempty"`
 	FileId   string `json:"file_id,omitempty"`
+}
+
+func fileMimeType(fileName string) string {
+	ext := strings.ToLower(filepath.Ext(fileName))
+	if ext == "" {
+		return ""
+	}
+	if mimeType := mime.TypeByExtension(ext); mimeType != "" {
+		return mimeType
+	}
+	switch ext {
+	case ".pdf":
+		return "application/pdf"
+	case ".txt", ".text":
+		return "text/plain; charset=utf-8"
+	case ".md", ".markdown":
+		return "text/markdown; charset=utf-8"
+	case ".csv":
+		return "text/csv; charset=utf-8"
+	case ".json":
+		return "application/json"
+	}
+	return ""
 }
 
 type MessageVideoUrl struct {

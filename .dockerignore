@@ -7,6 +7,8 @@ Makefile
 docs
 .eslintcache
 .gocache
+logs-image-async-test
+data-image-async-test
 /web/node_modules
 /web/default/node_modules
 /web/default/dist
