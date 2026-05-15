@@ -2,7 +2,7 @@ services:
   new-api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     image: aittco/new-api:local
     container_name: aittco-new-api
     restart: always
