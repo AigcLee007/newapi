@@ -8,6 +8,7 @@ upload
 build
 *.db-journal
 logs
+frontend-dev.log
 logs-image-async-test/
 data-image-async-test/
 web/default/dist

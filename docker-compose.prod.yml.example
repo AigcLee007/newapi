@@ -1,0 +1,73 @@
+services:
+  new-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aittco/new-api:local
+    container_name: aittco-new-api
+    restart: always
+    command: --log-dir /app/logs
+    ports:
+      - "${APP_HOST_PORT:-13000}:3000"
+    volumes:
+      - ./data:/data
+      - ./logs:/app/logs
+    environment:
+      - SQL_DSN=postgresql://root:${POSTGRES_PASSWORD}@postgres:5432/new-api
+      - REDIS_CONN_STRING=redis://:${REDIS_PASSWORD}@redis:6379
+      - SESSION_SECRET=${SESSION_SECRET}
+      - TZ=${TZ:-Asia/Shanghai}
+      - ERROR_LOG_ENABLED=true
+      - BATCH_UPDATE_ENABLED=true
+      - NODE_NAME=aittco-node-1
+      - IMAGE_ASYNC_RESULT_STORAGE=${IMAGE_ASYNC_RESULT_STORAGE:-passthrough}
+      - IMAGE_ASYNC_S3_PROVIDER=${IMAGE_ASYNC_S3_PROVIDER:-}
+      - IMAGE_ASYNC_S3_ENDPOINT=${IMAGE_ASYNC_S3_ENDPOINT:-}
+      - IMAGE_ASYNC_S3_REGION=${IMAGE_ASYNC_S3_REGION:-}
+      - IMAGE_ASYNC_S3_BUCKET=${IMAGE_ASYNC_S3_BUCKET:-}
+      - IMAGE_ASYNC_S3_ACCESS_KEY_ID=${IMAGE_ASYNC_S3_ACCESS_KEY_ID:-}
+      - IMAGE_ASYNC_S3_SECRET_ACCESS_KEY=${IMAGE_ASYNC_S3_SECRET_ACCESS_KEY:-}
+      - IMAGE_ASYNC_S3_FORCE_PATH_STYLE=${IMAGE_ASYNC_S3_FORCE_PATH_STYLE:-false}
+      - IMAGE_ASYNC_S3_PUBLIC_BASE_URL=${IMAGE_ASYNC_S3_PUBLIC_BASE_URL:-}
+      - IMAGE_ASYNC_S3_OBJECT_PREFIX=${IMAGE_ASYNC_S3_OBJECT_PREFIX:-newapi/images/}
+      - IMAGE_ASYNC_CONVERT_B64_TO_URL=${IMAGE_ASYNC_CONVERT_B64_TO_URL:-true}
+      - IMAGE_ASYNC_CACHE_UPSTREAM_URL=${IMAGE_ASYNC_CACHE_UPSTREAM_URL:-true}
+      - IMAGE_ASYNC_RESULT_MAX_MB=${IMAGE_ASYNC_RESULT_MAX_MB:-64}
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - aittco-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/api/status | grep -o '\"success\":\\s*true' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: aittco-redis
+    restart: always
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    networks:
+      - aittco-network
+
+  postgres:
+    image: postgres:15
+    container_name: aittco-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: new-api
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - aittco-network
+
+volumes:
+  pg_data:
+
+networks:
+  aittco-network:
+    driver: bridge
