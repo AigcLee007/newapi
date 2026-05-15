@@ -134,6 +134,17 @@ export const CHANNEL_TYPE_CONFIGS: Record<number, ChannelTypeConfig> = {
       baseUrl: 'Default: https://api.replicate.com',
     },
   },
+  58: {
+    id: 58,
+    name: CHANNEL_TYPES[58],
+    icon: 'openai',
+    defaultBaseUrl: 'https://visionary.beer',
+    hints: {
+      key: 'Visionary API Key',
+      models: 'gpt-image-2,gpt-image-2-official,Nano_Banana_Pro',
+      baseUrl: 'Default: https://visionary.beer',
+    },
+  },
 }
 
 /**

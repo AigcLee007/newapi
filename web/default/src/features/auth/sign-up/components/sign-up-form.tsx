@@ -229,7 +229,11 @@ export function SignUpForm({
             <FormItem>
               <FormLabel>{t('Username')}</FormLabel>
               <FormControl>
-                <Input placeholder={t('Enter your username')} {...field} />
+                <Input
+                  placeholder={t('Enter your username')}
+                  className='rounded-full border-[#d5ccbc] bg-[#fbf8f1] px-5 dark:border-white/10 dark:bg-white/5'
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -246,6 +250,7 @@ export function SignUpForm({
               <FormControl>
                 <PasswordInput
                   placeholder={t('Enter password (8-20 characters)')}
+                  className='[&_input]:rounded-full [&_input]:border-[#d5ccbc] [&_input]:bg-[#fbf8f1] [&_input]:px-5 dark:[&_input]:border-white/10 dark:[&_input]:bg-white/5'
                   {...field}
                 />
               </FormControl>
@@ -262,7 +267,11 @@ export function SignUpForm({
             <FormItem>
               <FormLabel>{t('Confirm password')}</FormLabel>
               <FormControl>
-                <PasswordInput placeholder={t('Confirm password')} {...field} />
+                <PasswordInput
+                  placeholder={t('Confirm password')}
+                  className='[&_input]:rounded-full [&_input]:border-[#d5ccbc] [&_input]:bg-[#fbf8f1] [&_input]:px-5 dark:[&_input]:border-white/10 dark:[&_input]:bg-white/5'
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -285,6 +294,7 @@ export function SignUpForm({
                     <Input
                       placeholder={t('name@example.com')}
                       type='email'
+                      className='rounded-full border-[#d5ccbc] bg-[#fbf8f1] px-5 dark:border-white/10 dark:bg-white/5'
                       {...field}
                     />
                   </FormControl>
@@ -300,6 +310,7 @@ export function SignUpForm({
                   placeholder={t('Verification code')}
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value)}
+                  className='rounded-full border-[#d5ccbc] bg-[#fbf8f1] px-5 dark:border-white/10 dark:bg-white/5'
                 />
               </div>
               <Button
@@ -340,7 +351,7 @@ export function SignUpForm({
         {/* Submit Button */}
         <Button
           type='submit'
-          className='mt-2 w-full justify-center gap-2'
+          className='mt-3 h-12 w-full justify-center gap-2 rounded-full bg-[#1d1b16] font-extrabold text-[#fffaf0] hover:bg-[#343027] dark:bg-[#f4efe6] dark:text-[#161512] dark:hover:bg-white'
           disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
         >
           {isLoading ? <Loader2 className='h-4 w-4 animate-spin' /> : null}

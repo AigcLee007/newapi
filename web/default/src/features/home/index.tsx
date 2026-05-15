@@ -20,9 +20,16 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
 import { Markdown } from '@/components/ui/markdown'
 import { PublicLayout } from '@/components/layout'
-import { Footer } from '@/components/layout/components/footer'
-import { CTA, Features, Hero, HowItWorks, Stats } from './components'
+import type { TopNavLink } from '@/components/layout/types'
+import { Hero } from './components'
 import { useHomePageContent } from './hooks'
+
+const homeNavLinks: TopNavLink[] = [
+  { title: 'Home', href: '/' },
+  { title: 'Dashboard', href: '/dashboard' },
+  { title: 'Models', href: '/pricing' },
+  { title: 'Docs', href: 'https://docs.newapi.pro', external: true },
+]
 
 export function Home() {
   const { t } = useTranslation()
@@ -32,7 +39,14 @@ export function Home() {
 
   if (!isLoaded) {
     return (
-      <PublicLayout showMainContainer={false}>
+      <PublicLayout
+        showMainContainer={false}
+        navLinks={homeNavLinks}
+        headerProps={{ showNavigation: false }}
+        showThemeSwitch={false}
+        showLanguageSwitcher={false}
+        showNotifications={false}
+      >
         <main className='flex min-h-screen items-center justify-center'>
           <div className='text-muted-foreground'>{t('Loading...')}</div>
         </main>
@@ -42,7 +56,14 @@ export function Home() {
 
   if (content) {
     return (
-      <PublicLayout showMainContainer={false}>
+      <PublicLayout
+        showMainContainer={false}
+        navLinks={homeNavLinks}
+        headerProps={{ showNavigation: isAuthenticated }}
+        showThemeSwitch={isAuthenticated}
+        showLanguageSwitcher={isAuthenticated}
+        showNotifications={isAuthenticated}
+      >
         <main className='overflow-x-hidden'>
           {isUrl ? (
             <iframe
@@ -60,14 +81,24 @@ export function Home() {
     )
   }
 
+  if (!isAuthenticated) {
+    return (
+      <PublicLayout
+        showMainContainer={false}
+        navLinks={homeNavLinks}
+        headerProps={{ showNavigation: false }}
+        showThemeSwitch={false}
+        showLanguageSwitcher={false}
+        showNotifications={false}
+      >
+        <Hero isAuthenticated={false} />
+      </PublicLayout>
+    )
+  }
+
   return (
-    <PublicLayout showMainContainer={false}>
-      <Hero isAuthenticated={isAuthenticated} />
-      <Stats />
-      <Features />
-      <HowItWorks />
-      <CTA isAuthenticated={isAuthenticated} />
-      <Footer />
+    <PublicLayout showMainContainer={false} navLinks={homeNavLinks}>
+      <Hero isAuthenticated />
     </PublicLayout>
   )
 }

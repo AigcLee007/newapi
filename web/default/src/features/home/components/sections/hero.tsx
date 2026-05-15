@@ -19,8 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useSystemConfig } from '@/hooks/use-system-config'
 import { Button } from '@/components/ui/button'
-import { HeroTerminalDemo } from '../hero-terminal-demo'
 
 interface HeroProps {
   className?: string
@@ -29,83 +29,112 @@ interface HeroProps {
 
 export function Hero(props: HeroProps) {
   const { t } = useTranslation()
+  const { systemName, logo } = useSystemConfig()
+  const brandName = systemName || 'Aittco'
+  const primaryTarget = props.isAuthenticated ? '/dashboard' : '/sign-in'
+  const primaryLabel = props.isAuthenticated
+    ? t('Open workspace')
+    : t('Sign in')
 
   return (
-    <section className='relative z-10 flex flex-col items-center overflow-hidden px-6 pt-28 pb-16 md:pt-36 md:pb-24'>
-      {/* Radial gradient background */}
+    <section
+      className={[
+        'relative z-10 flex min-h-screen overflow-hidden bg-[#f3eee4] px-5 pt-24 text-[#171511]',
+        'md:px-8 md:pt-28 dark:bg-[#151411] dark:text-[#f6f0e6]',
+        props.className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <div
         aria-hidden
-        className='pointer-events-none absolute inset-0 -z-10 opacity-25 dark:opacity-[0.12]'
-        style={{
-          background: [
-            'radial-gradient(ellipse 60% 50% at 20% 20%, oklch(0.72 0.18 250 / 80%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 50% 40% at 80% 15%, oklch(0.65 0.15 200 / 60%) 0%, transparent 70%)',
-            'radial-gradient(ellipse 40% 35% at 40% 80%, oklch(0.70 0.12 280 / 40%) 0%, transparent 70%)',
-          ].join(', '),
-        }}
+        className='absolute inset-x-0 top-0 -z-10 h-px bg-[#1d1b16]/10 dark:bg-white/10'
       />
-      {/* Grid pattern */}
-      <div
-        aria-hidden
-        className='absolute inset-0 -z-10 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_30%,black_20%,transparent_100%)] bg-[size:4rem_4rem] opacity-[0.08]'
-      />
-
-      <div className='flex max-w-3xl flex-col items-center text-center'>
-        <h1
-          className='landing-animate-fade-up text-[clamp(2rem,5.5vw,3.5rem)] leading-[1.15] font-bold tracking-tight'
-          style={{ animationDelay: '0ms' }}
-        >
-          {t('Unified API Gateway for')}
-          <br />
-          <span className='bg-gradient-to-r from-blue-400 via-violet-400 to-purple-500 bg-clip-text text-transparent'>
-            {t('All Your AI Models')}
-          </span>
-        </h1>
-        <p
-          className='landing-animate-fade-up text-muted-foreground/80 mt-5 max-w-lg text-base leading-relaxed opacity-0 md:text-lg'
-          style={{ animationDelay: '80ms' }}
-        >
-          {t('Power AI applications, manage digital assets, connect the Future')}
-        </p>
-        <div
-          className='landing-animate-fade-up mt-8 flex items-center gap-3 opacity-0'
-          style={{ animationDelay: '160ms' }}
-        >
-          {props.isAuthenticated ? (
+      <div className='mx-auto grid w-full max-w-7xl items-center gap-14 pb-14 md:grid-cols-[minmax(0,1fr)_26rem] md:gap-20 md:pb-18 lg:gap-28'>
+        <div className='max-w-[48rem]'>
+          <p
+            className='landing-animate-fade-up mb-6 text-sm font-extrabold text-[#7f3a10] uppercase dark:text-[#d6a47b]'
+            style={{ animationDelay: '0ms' }}
+          >
+            {t('One place for every model')}
+          </p>
+          <h1
+            className='landing-animate-fade-up max-w-[760px] text-[clamp(4.5rem,8.2vw,6.9rem)] leading-[0.92] font-extrabold tracking-normal'
+            style={{ animationDelay: '70ms' }}
+          >
+            {t('Route every request with intent.')}
+          </h1>
+          <p
+            className='landing-animate-fade-up mt-7 max-w-2xl text-xl leading-8 text-[#443e34] md:text-[1.35rem] dark:text-[#cfc6b8]'
+            style={{ animationDelay: '140ms' }}
+          >
+            {t(
+              'Give your team one clear entrance to choose models, control costs, create images, and track usage without exposing complex configuration.'
+            )}
+          </p>
+          <div
+            className='landing-animate-fade-up mt-10 flex flex-wrap items-center gap-6'
+            style={{ animationDelay: '210ms' }}
+          >
             <Button
-              className='group rounded-lg'
-              render={<Link to='/dashboard' />}
+              className='h-12 rounded-full bg-[#1d1b16] px-6 text-base font-extrabold text-[#fffaf0] hover:bg-[#343027] dark:bg-[#f4efe6] dark:text-[#161512] dark:hover:bg-white'
+              render={<Link to={primaryTarget} />}
             >
-              {t('Go to Dashboard')}
-              <ArrowRight className='ml-1 size-3.5 transition-transform duration-200 group-hover:translate-x-0.5' />
+              {primaryLabel}
+              <ArrowRight className='ml-2 size-4' />
             </Button>
-          ) : (
-            <>
-              <Button
-                className='group rounded-lg'
-                render={<Link to='/sign-up' />}
+            {props.isAuthenticated && (
+              <Link
+                to='/keys'
+                className='text-base font-bold text-[#242018] transition-colors hover:text-[#7f3a10] dark:text-[#ded5c8] dark:hover:text-[#f0c19d]'
               >
-                {t('Get Started')}
-                <ArrowRight className='ml-1 size-3.5 transition-transform duration-200 group-hover:translate-x-0.5' />
-              </Button>
-              <Button
-                variant='outline'
-                className='border-border/50 hover:border-border hover:bg-muted/50 rounded-lg'
-                render={<Link to='/pricing' />}
-              >
-                {t('View Pricing')}
-              </Button>
-            </>
-          )}
+                {t('Manage tokens')}
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div
+          className='landing-animate-fade-up rounded-lg border border-[#1d1b16]/12 bg-[#fffdf8]/55 p-6 shadow-[0_22px_80px_rgba(52,43,28,0.08)] backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none'
+          style={{ animationDelay: '260ms' }}
+        >
+          <div className='mb-5 text-sm font-extrabold text-[#7f3a10] uppercase dark:text-[#d6a47b]'>
+            {t('Today in Aittco')}
+          </div>
+          <div className='divide-y divide-[#1d1b16]/12 dark:divide-white/10'>
+            <StatusRow label={t('Chat routing')} value={t('stable')} />
+            <StatusRow label={t('Image tasks')} value={t('COS ready')} />
+            <StatusRow label={t('Usage guardrails')} value={t('active')} />
+          </div>
+          <div className='mt-6 grid grid-cols-3 gap-3'>
+            <Metric value='42' label={t('models')} />
+            <Metric value='3' label={t('routes')} />
+            <Metric value='1' label={t('bill')} />
+          </div>
         </div>
       </div>
-
-      <div
-        className='landing-animate-fade-up w-full opacity-0'
-        style={{ animationDelay: '300ms' }}
-      >
-        <HeroTerminalDemo />
-      </div>
     </section>
+  )
+}
+
+function StatusRow(props: { label: string; value: string }) {
+  return (
+    <div className='flex items-center justify-between gap-4 py-4 text-base font-extrabold'>
+      <span>{props.label}</span>
+      <span className='text-sm font-bold text-[#62584b] dark:text-[#cfc6b8]'>
+        {props.value}
+      </span>
+    </div>
+  )
+}
+
+function Metric(props: { value: string; label: string }) {
+  return (
+    <div className='rounded-lg bg-[#ebe3d5] p-4 dark:bg-white/10'>
+      <strong className='block text-2xl leading-none'>{props.value}</strong>
+      <span className='mt-2 block text-xs text-[#6d6457] dark:text-[#cfc6b8]'>
+        {props.label}
+      </span>
+    </div>
   )
 }

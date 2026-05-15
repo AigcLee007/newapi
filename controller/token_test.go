@@ -48,21 +48,21 @@ type sqliteColumnInfo struct {
 }
 
 type legacyToken struct {
-	Id                 int            `gorm:"primaryKey"`
-	UserId             int            `gorm:"index"`
-	Key                string         `gorm:"column:key;type:char(48);uniqueIndex"`
-	Status             int            `gorm:"default:1"`
-	Name               string         `gorm:"index"`
-	CreatedTime        int64          `gorm:"bigint"`
-	AccessedTime       int64          `gorm:"bigint"`
-	ExpiredTime        int64          `gorm:"bigint;default:-1"`
-	RemainQuota        int            `gorm:"default:0"`
+	Id                 int    `gorm:"primaryKey"`
+	UserId             int    `gorm:"index"`
+	Key                string `gorm:"column:key;type:char(48);uniqueIndex"`
+	Status             int    `gorm:"default:1"`
+	Name               string `gorm:"index"`
+	CreatedTime        int64  `gorm:"bigint"`
+	AccessedTime       int64  `gorm:"bigint"`
+	ExpiredTime        int64  `gorm:"bigint;default:-1"`
+	RemainQuota        int    `gorm:"default:0"`
 	UnlimitedQuota     bool
 	ModelLimitsEnabled bool
-	ModelLimits        string         `gorm:"type:text"`
-	AllowIps           *string        `gorm:"default:''"`
-	UsedQuota          int            `gorm:"default:0"`
-	Group              string         `gorm:"column:group;default:''"`
+	ModelLimits        string  `gorm:"type:text"`
+	AllowIps           *string `gorm:"default:''"`
+	UsedQuota          int     `gorm:"default:0"`
+	Group              string  `gorm:"column:group;default:''"`
 	CrossGroupRetry    bool
 	DeletedAt          gorm.DeletedAt `gorm:"index"`
 }
@@ -203,6 +203,7 @@ func newAuthenticatedContext(t *testing.T, method string, target string, body an
 		ctx.Request.Header.Set("Content-Type", "application/json")
 	}
 	ctx.Set("id", userID)
+	ctx.Set("role", common.RoleCommonUser)
 	return ctx, recorder
 }
 
@@ -537,5 +538,172 @@ func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {
 	}
 	if strings.Contains(unauthorizedRecorder.Body.String(), token.Key) {
 		t.Fatalf("unauthorized key response leaked raw token key: %s", unauthorizedRecorder.Body.String())
+	}
+}
+
+func TestAddTokenRandomKeyForCommonUser(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "random-token",
+		"expired_time":         -1,
+		"remain_quota":         0,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	if !response.Success {
+		t.Fatalf("expected common user random token creation to succeed, got message: %s", response.Message)
+	}
+
+	var token model.Token
+	if err := db.First(&token, "user_id = ? and name = ?", 1, "random-token").Error; err != nil {
+		t.Fatalf("failed to load created token: %v", err)
+	}
+	if token.Key == "" {
+		t.Fatal("expected random key to be generated")
+	}
+}
+
+func TestAddTokenRejectsCustomKeyForCommonUser(t *testing.T) {
+	setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "blocked-custom-token",
+		"key":                  "sk-common-custom-key-001",
+		"expired_time":         -1,
+		"remain_quota":         0,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d with body %s", recorder.Code, recorder.Body.String())
+	}
+	response := decodeAPIResponse(t, recorder)
+	if response.Success {
+		t.Fatal("expected common user custom key creation to fail")
+	}
+	if !strings.Contains(response.Message, "超级管理员") {
+		t.Fatalf("expected super admin error message, got %q", response.Message)
+	}
+}
+
+func TestAddTokenAllowsCustomKeyForRoot(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":                 "root-custom-token",
+		"key":                  "sk-root-custom-key-001",
+		"expired_time":         -1,
+		"remain_quota":         0,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	ctx.Set("role", common.RoleRootUser)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	if !response.Success {
+		t.Fatalf("expected root custom key creation to succeed, got message: %s", response.Message)
+	}
+
+	var token model.Token
+	if err := db.First(&token, "name = ?", "root-custom-token").Error; err != nil {
+		t.Fatalf("failed to load root custom token: %v", err)
+	}
+	if token.Key != "root-custom-key-001" {
+		t.Fatalf("expected normalized key %q, got %q", "root-custom-key-001", token.Key)
+	}
+	var fetched model.Token
+	if err := db.First(&fetched, "id = ? and user_id = ?", token.Id, 1).Error; err != nil {
+		t.Fatalf("failed to refetch custom token: %v", err)
+	}
+	if fetched.Key != "root-custom-key-001" {
+		t.Fatalf("expected refetched normalized key %q, got %q", "root-custom-key-001", fetched.Key)
+	}
+}
+
+func TestAddTokenRejectsDuplicateCustomKeyForRoot(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	seedToken(t, db, 1, "existing-token", "duplicate-custom-key")
+	body := map[string]any{
+		"name":                 "duplicate-token",
+		"key":                  "sk-duplicate-custom-key",
+		"expired_time":         -1,
+		"remain_quota":         0,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    false,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	ctx.Set("role", common.RoleRootUser)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	if response.Success {
+		t.Fatal("expected duplicate custom key creation to fail")
+	}
+	if !strings.Contains(response.Message, "已存在") {
+		t.Fatalf("expected duplicate key message, got %q", response.Message)
+	}
+}
+
+func TestAddTokenRejectsInvalidCustomKeyForRoot(t *testing.T) {
+	tests := []string{
+		"123",
+		"sk-short",
+		"sk-key with spaces",
+		"sk-key-with-newline\nabc",
+		"sk-key-with-中文",
+		"sk-key-with-@-symbol",
+		strings.Repeat("a", 129),
+	}
+
+	for _, customKey := range tests {
+		t.Run(customKey, func(t *testing.T) {
+			setupTokenControllerTestDB(t)
+			body := map[string]any{
+				"name":                 "invalid-custom-token",
+				"key":                  customKey,
+				"expired_time":         -1,
+				"remain_quota":         0,
+				"unlimited_quota":      true,
+				"model_limits_enabled": false,
+				"model_limits":         "",
+				"group":                "default",
+				"cross_group_retry":    false,
+			}
+
+			ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+			ctx.Set("role", common.RoleRootUser)
+			AddToken(ctx)
+
+			response := decodeAPIResponse(t, recorder)
+			if response.Success {
+				t.Fatalf("expected invalid custom key %q to fail", customKey)
+			}
+			if !strings.Contains(response.Message, "密钥格式不合法") {
+				t.Fatalf("expected invalid key message, got %q", response.Message)
+			}
+		})
 	}
 }

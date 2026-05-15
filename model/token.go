@@ -276,6 +276,12 @@ func GetTokenByKey(key string, fromDB bool) (token *Token, err error) {
 	return token, err
 }
 
+func IsTokenKeyDuplicated(key string) (bool, error) {
+	var count int64
+	err := DB.Unscoped().Model(&Token{}).Where(&Token{Key: key}).Count(&count).Error
+	return count > 0, err
+}
+
 func (token *Token) Insert() error {
 	var err error
 	err = DB.Create(token).Error

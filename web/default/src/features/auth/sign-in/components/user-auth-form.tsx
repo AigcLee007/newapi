@@ -292,6 +292,7 @@ export function UserAuthForm({
               <FormControl>
                 <Input
                   placeholder={t('Enter your username or email')}
+                  className='rounded-full border-[#d5ccbc] bg-[#fbf8f1] px-5 dark:border-white/10 dark:bg-white/5'
                   {...field}
                 />
               </FormControl>
@@ -308,7 +309,11 @@ export function UserAuthForm({
             <FormItem className='relative'>
               <FormLabel>{t('Password')}</FormLabel>
               <FormControl>
-                <PasswordInput placeholder={t('Enter password')} {...field} />
+                <PasswordInput
+                  placeholder={t('Enter password')}
+                  className='[&_input]:rounded-full [&_input]:border-[#d5ccbc] [&_input]:bg-[#fbf8f1] [&_input]:px-5 dark:[&_input]:border-white/10 dark:[&_input]:bg-white/5'
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
               <Link
@@ -324,7 +329,7 @@ export function UserAuthForm({
         {/* Submit Button */}
         <Button
           type='submit'
-          className='mt-2 w-full justify-center gap-2'
+          className='mt-3 h-12 w-full justify-center gap-2 rounded-full bg-[#1d1b16] font-extrabold text-[#fffaf0] hover:bg-[#343027] dark:bg-[#f4efe6] dark:text-[#161512] dark:hover:bg-white'
           disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
         >
           {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
@@ -355,7 +360,7 @@ export function UserAuthForm({
               variant='outline'
               disabled={passkeyButtonDisabled}
               onClick={handlePasskeyLogin}
-              className='h-11 w-full justify-center gap-2 rounded-lg'
+              className='h-11 w-full justify-center gap-2 rounded-full border-[#d5ccbc] bg-[#fffdf8]/40 dark:border-white/10 dark:bg-white/5'
             >
               {isPasskeyLoading ? (
                 <Loader2 className='h-4 w-4 animate-spin' />

@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+var customTokenKeyPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{16,128}$`)
 
 func buildMaskedTokenResponse(token *model.Token) *model.Token {
 	if token == nil {
@@ -29,6 +32,17 @@ func buildMaskedTokenResponses(tokens []*model.Token) []*model.Token {
 		maskedTokens = append(maskedTokens, buildMaskedTokenResponse(token))
 	}
 	return maskedTokens
+}
+
+func normalizeCustomTokenKey(key string) string {
+	return strings.TrimPrefix(key, "sk-")
+}
+
+func validateCustomTokenKey(key string) error {
+	if !customTokenKeyPattern.MatchString(key) {
+		return fmt.Errorf("密钥格式不合法：长度需为 16-128，只允许字母、数字、下划线、短横线和点")
+	}
+	return nil
 }
 
 func GetAllTokens(c *gin.Context) {
@@ -201,11 +215,37 @@ func AddToken(c *gin.Context) {
 		})
 		return
 	}
-	key, err := common.GenerateKey()
-	if err != nil {
-		common.ApiErrorI18n(c, i18n.MsgTokenGenerateFailed)
-		common.SysLog("failed to generate token key: " + err.Error())
-		return
+	customKey := normalizeCustomTokenKey(token.Key)
+	key := customKey
+	if customKey != "" {
+		if c.GetInt("role") != common.RoleRootUser {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"message": "只有超级管理员可以自定义密钥",
+			})
+			return
+		}
+		if err := validateCustomTokenKey(customKey); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		duplicated, err := model.IsTokenKeyDuplicated(customKey)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		if duplicated {
+			common.ApiError(c, fmt.Errorf("该密钥已存在"))
+			return
+		}
+	} else {
+		var err error
+		key, err = common.GenerateKey()
+		if err != nil {
+			common.ApiErrorI18n(c, i18n.MsgTokenGenerateFailed)
+			common.SysLog("failed to generate token key: " + err.Error())
+			return
+		}
 	}
 	cleanToken := model.Token{
 		UserId:             c.GetInt("id"),
@@ -224,6 +264,12 @@ func AddToken(c *gin.Context) {
 	}
 	err = cleanToken.Insert()
 	if err != nil {
+		if customKey != "" {
+			if duplicated, checkErr := model.IsTokenKeyDuplicated(customKey); checkErr == nil && duplicated {
+				common.ApiError(c, fmt.Errorf("该密钥已存在"))
+				return
+			}
+		}
 		common.ApiError(c, err)
 		return
 	}

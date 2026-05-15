@@ -27,6 +27,7 @@ import { type ApiKeyFormData, type ApiKey } from '../types'
 
 export const apiKeyFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
+  key: z.string().max(131, 'Custom key is too long').optional(),
   remain_quota_dollars: z.number().min(0).optional(),
   expired_time: z.date().optional(),
   unlimited_quota: z.boolean(),
@@ -45,6 +46,7 @@ export type ApiKeyFormValues = z.infer<typeof apiKeyFormSchema>
 
 export const API_KEY_FORM_DEFAULT_VALUES: ApiKeyFormValues = {
   name: '',
+  key: '',
   remain_quota_dollars: 10,
   expired_time: undefined,
   unlimited_quota: true,
@@ -77,6 +79,7 @@ export function transformFormDataToPayload(
 ): ApiKeyFormData {
   return {
     name: data.name,
+    ...(data.key ? { key: data.key } : {}),
     remain_quota: data.unlimited_quota
       ? 0
       : parseQuotaFromDollars(data.remain_quota_dollars || 0),
@@ -100,6 +103,7 @@ export function transformApiKeyToFormDefaults(
 ): ApiKeyFormValues {
   return {
     name: apiKey.name,
+    key: '',
     remain_quota_dollars: quotaUnitsToDollars(apiKey.remain_quota),
     expired_time:
       apiKey.expired_time > 0
