@@ -113,36 +113,30 @@ export function ImageAsyncTaskDialog(props: ImageAsyncTaskDialogProps) {
               <section className='space-y-3'>
                 <SectionTitle title={t('Returned Images')} />
                 {images.length > 0 ? (
-                  <div className='grid gap-3 sm:grid-cols-2'>
+                  <div className='space-y-3'>
                     {images.map((image, index) => (
                       <div
                         key={`${image.url}-${index}`}
                         className='border-border/70 bg-muted/20 rounded-lg border p-3'
                       >
-                        <a
-                          href={image.url}
-                          target='_blank'
-                          rel='noopener noreferrer'
-                          className='bg-background block overflow-hidden rounded-md'
-                        >
-                          <img
-                            src={image.url}
-                            alt={t('Generated image')}
-                            className='h-48 w-full object-contain'
-                          />
-                        </a>
-                        <div className='mt-3 flex items-center justify-between gap-2'>
-                          <div className='text-muted-foreground min-w-0 text-xs'>
-                            <p className='truncate'>
-                              {image.contentType || '-'}
+                        <div className='flex items-start justify-between gap-3'>
+                          <div className='min-w-0 flex-1 space-y-2'>
+                            <p className='text-muted-foreground text-xs font-medium'>
+                              {t('Image')} #{index + 1}
                             </p>
-                            <p>
-                              {image.size
-                                ? `${(image.size / 1024).toFixed(1)} KB`
-                                : image.source || '-'}
+                            <p className='bg-background text-foreground rounded-md border px-3 py-2 font-mono text-xs leading-relaxed break-all'>
+                              {image.url}
                             </p>
+                            <div className='text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs'>
+                              <span>{image.contentType || '-'}</span>
+                              <span>
+                                {image.size
+                                  ? `${(image.size / 1024).toFixed(1)} KB`
+                                  : image.source || '-'}
+                              </span>
+                            </div>
                           </div>
-                          <div className='flex items-center gap-1'>
+                          <div className='flex shrink-0 items-center gap-1'>
                             <Button
                               variant='ghost'
                               size='icon'
