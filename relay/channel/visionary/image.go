@@ -25,12 +25,15 @@ type ImageRequest struct {
 }
 
 type ImageResponse struct {
-	ID           string        `json:"id"`
-	Results      []ImageResult `json:"results"`
-	Error        any           `json:"error,omitempty"`
-	ResponseID   string        `json:"responseId,omitempty"`
-	ModelVersion string        `json:"modelVersion,omitempty"`
-	CreatedAt    int64         `json:"createdAt,omitempty"`
+	ID            string        `json:"id"`
+	Results       []ImageResult `json:"results"`
+	Progress      int           `json:"progress,omitempty"`
+	Status        string        `json:"status,omitempty"`
+	FailureReason string        `json:"failure_reason,omitempty"`
+	Error         any           `json:"error,omitempty"`
+	ResponseID    string        `json:"responseId,omitempty"`
+	ModelVersion  string        `json:"modelVersion,omitempty"`
+	CreatedAt     int64         `json:"createdAt,omitempty"`
 }
 
 type ImageResult struct {
@@ -111,6 +114,23 @@ func responseVisionary2OpenAIImage(response *ImageResponse, info *relaycommon.Re
 	return imageResponse
 }
 
+func visionaryErrorMessage(response *ImageResponse) string {
+	if response == nil {
+		return ""
+	}
+	if message := strings.TrimSpace(response.FailureReason); message != "" {
+		return message
+	}
+	switch value := response.Error.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(value)
+	default:
+		return strings.TrimSpace(fmt.Sprintf("%v", value))
+	}
+}
+
 func visionaryImageHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.NewAPIError) {
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -122,9 +142,9 @@ func visionaryImageHandler(c *gin.Context, resp *http.Response, info *relaycommo
 	if err := common.Unmarshal(responseBody, &visionaryResponse); err != nil {
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 	}
-	if visionaryResponse.Error != nil {
+	if message := visionaryErrorMessage(&visionaryResponse); message != "" && len(visionaryResponse.Results) == 0 {
 		return nil, types.WithOpenAIError(types.OpenAIError{
-			Message: fmt.Sprintf("%v", visionaryResponse.Error),
+			Message: message,
 			Type:    "visionary_image_error",
 			Code:    "visionary_image_error",
 		}, resp.StatusCode)

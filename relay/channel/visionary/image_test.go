@@ -43,6 +43,8 @@ func TestOAIImage2VisionaryImageRequest(t *testing.T) {
 
 func TestResponseVisionary2OpenAIImage(t *testing.T) {
 	response := &ImageResponse{
+		Error:  "",
+		Status: "succeeded",
 		Results: []ImageResult{
 			{URL: "https://visionary.beer/openapi-assets/example-result.png"},
 		},
@@ -55,5 +57,14 @@ func TestResponseVisionary2OpenAIImage(t *testing.T) {
 	}
 	if got.Data[0].Url != response.Results[0].URL {
 		t.Fatalf("url = %q", got.Data[0].Url)
+	}
+}
+
+func TestVisionaryErrorMessage(t *testing.T) {
+	if message := visionaryErrorMessage(&ImageResponse{Error: ""}); message != "" {
+		t.Fatalf("empty error message = %q", message)
+	}
+	if message := visionaryErrorMessage(&ImageResponse{FailureReason: "failed"}); message != "failed" {
+		t.Fatalf("failure reason message = %q", message)
 	}
 }
