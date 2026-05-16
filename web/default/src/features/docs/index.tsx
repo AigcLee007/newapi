@@ -29,6 +29,7 @@ import {
   Timer,
   Workflow,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useStatus } from '@/hooks/use-status'
 import { Badge } from '@/components/ui/badge'
@@ -49,69 +50,6 @@ const navLinks = [
   { title: 'Docs', href: '/docs' },
 ]
 
-const endpointGroups = [
-  {
-    title: 'OpenAI image compatible',
-    description: 'Best for gpt-image-2 and OpenAI-style image providers.',
-    models: ['gpt-image-2'],
-    endpoints: [
-      'POST /v1/images/generations',
-      'POST /v1/images/generations?async=true',
-      'GET /v1/images/tasks/{task_id}',
-    ],
-  },
-  {
-    title: 'Visionary image models',
-    description:
-      'Use provider-native image fields. Nano_Banana_Pro expects ratio and imageSize style parameters.',
-    models: ['Nano_Banana_Pro'],
-    endpoints: [
-      'POST /v1/images/generations',
-      'POST /v1/images/generations?async=true',
-      'GET /v1/images/tasks/{task_id}',
-    ],
-  },
-  {
-    title: 'Gemini image models',
-    description:
-      'Supports Gemini native generateContent plus OpenAI-compatible image generation and async editing.',
-    models: ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview'],
-    endpoints: [
-      'POST /v1beta/models/{model}:generateContent',
-      'POST /v1/images/generations',
-      'POST /v1/images/generations?async=true',
-      'POST /v1/images/edits?async=true',
-    ],
-  },
-]
-
-const parameterRows = [
-  ['model', 'Required', 'The model name configured in the model square.'],
-  ['prompt', 'Required', 'Text instruction for generation or editing.'],
-  ['n', 'Optional', 'Number of images. Keep 1 for most upstream channels.'],
-  ['size', 'OpenAI style', 'Example: 1024x1024. Use this for gpt-image-2.'],
-  [
-    'aspect_ratio',
-    'Gemini / Visionary style',
-    'Example: 1:1, 16:9, 9:16. Prefer this for Gemini and Visionary.',
-  ],
-  [
-    'imageSize',
-    'Gemini / Visionary style',
-    'Example: 1K, 2K. Use this instead of size when the upstream expects native fields.',
-  ],
-  [
-    'images',
-    'Edit / reference image',
-    'Array of input image URLs for image-to-image or editing tasks.',
-  ],
-  [
-    'Idempotency-Key',
-    'Async header',
-    'Recommended for async requests to avoid duplicate task submission.',
-  ],
-]
-
 function getOrigin() {
   if (typeof window === 'undefined') {
     return 'https://max.aittco.com'
@@ -119,20 +57,308 @@ function getOrigin() {
   return window.location.origin
 }
 
-export function Docs() {
-  const { status } = useStatus()
-  const baseUrl = useMemo(() => getOrigin(), [])
-  const externalDocs = String(status?.docs_link || '').trim()
+type Example = {
+  id: string
+  title: string
+  badge: string
+  description: string
+  code: string
+}
 
-  const examples = useMemo(
-    () => [
+function createDocsContent(props: { baseUrl: string; isChinese: boolean }) {
+  const { baseUrl, isChinese } = props
+
+  const en = {
+    hero: {
+      badge: 'Aittco API Documentation',
+      title: 'One accurate guide for your gateway.',
+      description:
+        'Use these examples with your own API key and the models enabled in this gateway. Image generation supports synchronous requests, background tasks, task polling, Gemini native format, and provider-specific image parameters.',
+      imageExamples: 'Image examples',
+      externalReference: 'External reference',
+    },
+    base: {
+      title: 'Base URL',
+      description: 'Requests should use this site as the API host.',
+      authorization: 'Authorization: Bearer sk-your-api-key',
+    },
+    endpointGroups: [
       {
-        id: 'gpt-image-sync',
-        title: 'gpt-image-2 synchronous generation',
-        badge: 'Sync',
+        title: 'OpenAI image compatible',
+        description: 'Best for gpt-image-2 and OpenAI-style image providers.',
+        models: ['gpt-image-2'],
+        endpoints: [
+          'POST /v1/images/generations',
+          'POST /v1/images/generations?async=true',
+          'GET /v1/images/tasks/{task_id}',
+        ],
+      },
+      {
+        title: 'Visionary image models',
         description:
-          'Use the OpenAI-compatible image endpoint. The response returns image data directly when the upstream finishes.',
-        code: `curl ${baseUrl}/v1/images/generations \\
+          'Use provider-native image fields. Nano_Banana_Pro expects ratio and imageSize style parameters.',
+        models: ['Nano_Banana_Pro'],
+        endpoints: [
+          'POST /v1/images/generations',
+          'POST /v1/images/generations?async=true',
+          'GET /v1/images/tasks/{task_id}',
+        ],
+      },
+      {
+        title: 'Gemini image models',
+        description:
+          'Supports Gemini native generateContent plus OpenAI-compatible image generation and async editing.',
+        models: [
+          'gemini-3-pro-image-preview',
+          'gemini-3.1-flash-image-preview',
+        ],
+        endpoints: [
+          'POST /v1beta/models/{model}:generateContent',
+          'POST /v1/images/generations',
+          'POST /v1/images/generations?async=true',
+          'POST /v1/images/edits?async=true',
+        ],
+      },
+    ],
+    syncAsync: {
+      title: 'How sync and async image calls differ',
+      description:
+        'Use synchronous calls for quick tests. Use asynchronous calls for slower image providers, production workflows, and any request that may take tens of seconds.',
+      syncTitle: 'Synchronous',
+      syncDescription:
+        'The HTTP request stays open until the upstream returns.',
+      syncPoints: [
+        'Use POST /v1/images/generations.',
+        'Best for short tests or fast upstream channels.',
+        'The image URL appears in the response body directly.',
+      ],
+      asyncTitle: 'Asynchronous',
+      asyncDescription:
+        'The first response returns a task id. Results are retrieved with the task endpoint.',
+      asyncPoints: [
+        'Add async=true to generation or edit endpoints.',
+        'Send Idempotency-Key to avoid duplicate tasks.',
+        'Poll GET /v1/images/tasks/{task_id} for progress and URLs.',
+      ],
+    },
+    parameters: {
+      title: 'Parameter format by model family',
+      description:
+        'Different upstreams accept different image parameter names. Use the format below to avoid model errors.',
+      fieldHeader: 'Field',
+      useHeader: 'Use',
+      notesHeader: 'Notes',
+    },
+    parameterRows: [
+      ['model', 'Required', 'The model name configured in the model square.'],
+      ['prompt', 'Required', 'Text instruction for generation or editing.'],
+      ['n', 'Optional', 'Number of images. Keep 1 for most upstream channels.'],
+      ['size', 'OpenAI style', 'Example: 1024x1024. Use this for gpt-image-2.'],
+      [
+        'aspect_ratio',
+        'Gemini / Visionary style',
+        'Example: 1:1, 16:9, 9:16. Prefer this for Gemini and Visionary.',
+      ],
+      [
+        'imageSize',
+        'Gemini / Visionary style',
+        'Example: 1K, 2K. Use this instead of size when the upstream expects native fields.',
+      ],
+      [
+        'images',
+        'Edit / reference image',
+        'Array of input image URLs for image-to-image or editing tasks.',
+      ],
+      [
+        'Idempotency-Key',
+        'Async header',
+        'Recommended for async requests to avoid duplicate task submission.',
+      ],
+    ] as [string, string, string][],
+    examplesTitle: 'Image API examples',
+    examplesDescription:
+      'Copy these examples, replace the API key, and keep the model name exactly as configured in the model square.',
+    troubleshooting: {
+      title: 'Task response and troubleshooting',
+      description:
+        'Async tasks are visible in the dashboard task logs. Result images are stored as URLs, and the dashboard shows addresses instead of loading images automatically.',
+      responseTitle: 'Task query response',
+      responseDescription:
+        'A finished task includes status, progress, model, and returned image URLs.',
+      mistakesTitle: 'Common mistakes',
+      mistakesDescription:
+        'Most image failures come from mismatched parameter formats or polling the wrong path.',
+      points: [
+        'Use /v1/images/tasks/{task_id}, not /v1/images/task/{task_id}.',
+        'Use size for gpt-image-2, but aspect_ratio and imageSize for Gemini or Visionary-style image channels.',
+        'If the model price is not configured, enable self-use mode or add model pricing before testing.',
+        'If a model has multiple channels, confirm each channel accepts the same parameter format.',
+      ],
+    },
+    copyLabel: 'Copy',
+    copiedLabel: 'Copied',
+    badges: {
+      sync: 'Sync',
+      async: 'Async',
+      visionary: 'Visionary',
+      gemini: 'Gemini',
+      edit: 'Edit',
+    },
+    examples: [] as Example[],
+  }
+
+  const zh = {
+    ...en,
+    hero: {
+      badge: 'Aittco API 文档',
+      title: '一份真正适配本站的接口指南。',
+      description:
+        '使用你自己的 API 密钥和本站已启用的模型即可调用。当前生图能力支持同步请求、异步任务、任务轮询、Gemini 原生格式，以及不同上游模型自己的图片参数格式。',
+      imageExamples: '生图示例',
+      externalReference: '外部参考',
+    },
+    base: {
+      title: '基础地址',
+      description: '所有请求都应该使用当前站点作为 API Host。',
+      authorization: '鉴权方式：Authorization: Bearer sk-your-api-key',
+    },
+    endpointGroups: [
+      {
+        title: 'OpenAI 兼容生图',
+        description: '适合 gpt-image-2 以及 OpenAI 风格的图片上游。',
+        models: ['gpt-image-2'],
+        endpoints: en.endpointGroups[0].endpoints,
+      },
+      {
+        title: 'Visionary 生图模型',
+        description:
+          '使用上游原生图片字段。Nano_Banana_Pro 推荐使用 ratio / imageSize 这类参数。',
+        models: ['Nano_Banana_Pro'],
+        endpoints: en.endpointGroups[1].endpoints,
+      },
+      {
+        title: 'Gemini 生图模型',
+        description:
+          '同时支持 Gemini 原生 generateContent、OpenAI 兼容生图接口，以及异步图片编辑。',
+        models: en.endpointGroups[2].models,
+        endpoints: en.endpointGroups[2].endpoints,
+      },
+    ],
+    syncAsync: {
+      title: '同步和异步生图有什么区别',
+      description:
+        '快速测试可以用同步接口；更慢的图片上游、生产流程、可能耗时几十秒的请求，建议使用异步接口。',
+      syncTitle: '同步',
+      syncDescription: 'HTTP 请求会一直等待，直到上游返回结果。',
+      syncPoints: [
+        '使用 POST /v1/images/generations。',
+        '适合短时间测试或响应较快的上游渠道。',
+        '图片 URL 会直接出现在本次响应体里。',
+      ],
+      asyncTitle: '异步',
+      asyncDescription:
+        '第一次响应只返回任务 ID，后续通过任务查询接口获取进度和结果。',
+      asyncPoints: [
+        '在生图或图片编辑接口后添加 async=true。',
+        '建议发送 Idempotency-Key，避免重复提交同一个任务。',
+        '轮询 GET /v1/images/tasks/{task_id} 查询进度和图片 URL。',
+      ],
+    },
+    parameters: {
+      title: '不同模型家族的参数格式',
+      description:
+        '不同上游支持的图片参数名不完全一样。按下面格式填写，可以减少模型参数错误。',
+      fieldHeader: '字段',
+      useHeader: '用途',
+      notesHeader: '说明',
+    },
+    parameterRows: [
+      ['model', '必填', '模型广场里配置的模型名称。'],
+      ['prompt', '必填', '生图或图片编辑的文本指令。'],
+      ['n', '可选', '生成图片数量。多数上游建议保持为 1。'],
+      ['size', 'OpenAI 风格', '例如 1024x1024。gpt-image-2 推荐使用这个字段。'],
+      [
+        'aspect_ratio',
+        'Gemini / Visionary 风格',
+        '例如 1:1、16:9、9:16。Gemini 和 Visionary 优先使用这个字段。',
+      ],
+      [
+        'imageSize',
+        'Gemini / Visionary 风格',
+        '例如 1K、2K。当上游要求原生字段时，用它替代 size。',
+      ],
+      [
+        'images',
+        '编辑 / 参考图',
+        '输入图片 URL 数组，用于图生图或图片编辑任务。',
+      ],
+      [
+        'Idempotency-Key',
+        '异步请求头',
+        '异步请求推荐携带，避免网络重试造成重复任务。',
+      ],
+    ] as [string, string, string][],
+    examplesTitle: '生图 API 示例',
+    examplesDescription:
+      '复制下面示例，替换 API 密钥，并确保模型名和模型广场中的配置完全一致。',
+    troubleshooting: {
+      title: '任务返回和常见问题',
+      description:
+        '异步任务可以在后台任务日志中查看。返回图片以 URL 保存，后台只显示地址，不会自动加载图片。',
+      responseTitle: '任务查询返回',
+      responseDescription:
+        '完成后的任务会包含状态、进度、模型，以及返回图片 URL。',
+      mistakesTitle: '常见错误',
+      mistakesDescription:
+        '多数生图失败来自参数格式不匹配，或轮询了错误的任务路径。',
+      points: [
+        '任务查询使用 /v1/images/tasks/{task_id}，不是 /v1/images/task/{task_id}。',
+        'gpt-image-2 使用 size；Gemini 或 Visionary 风格渠道使用 aspect_ratio 和 imageSize。',
+        '如果提示模型价格未配置，请先开启自用模式，或给该模型配置定价。',
+        '如果同一个模型配置了多个渠道，请确认每个渠道都接受相同参数格式。',
+      ],
+    },
+    copyLabel: '复制',
+    copiedLabel: '已复制',
+    badges: {
+      sync: '同步',
+      async: '异步',
+      visionary: 'Visionary',
+      gemini: 'Gemini',
+      edit: '编辑',
+    },
+    examples: [] as Example[],
+  }
+
+  const content = isChinese ? zh : en
+  content.examples = buildExamples(baseUrl, content, isChinese)
+  return content
+}
+
+function buildExamples(
+  baseUrl: string,
+  content: {
+    badges: {
+      sync: string
+      async: string
+      visionary: string
+      gemini: string
+      edit: string
+    }
+  },
+  isChinese: boolean
+): Example[] {
+  return [
+    {
+      id: 'gpt-image-sync',
+      title: isChinese
+        ? 'gpt-image-2 同步生图'
+        : 'gpt-image-2 synchronous generation',
+      badge: content.badges.sync,
+      description: isChinese
+        ? '使用 OpenAI 兼容图片接口。上游完成后，本次请求直接返回图片数据。'
+        : 'Use the OpenAI-compatible image endpoint. The response returns image data directly when the upstream finishes.',
+      code: `curl ${baseUrl}/v1/images/generations \\
   -H "Authorization: Bearer sk-your-api-key" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -141,14 +367,17 @@ export function Docs() {
     "size": "1024x1024",
     "n": 1
   }'`,
-      },
-      {
-        id: 'gpt-image-async',
-        title: 'gpt-image-2 asynchronous generation',
-        badge: 'Async',
-        description:
-          'Add async=true to create a background task. Poll the returned task id until status is SUCCESS or FAILED.',
-        code: `TASK_ID=$(curl -s "${baseUrl}/v1/images/generations?async=true" \\
+    },
+    {
+      id: 'gpt-image-async',
+      title: isChinese
+        ? 'gpt-image-2 异步生图'
+        : 'gpt-image-2 asynchronous generation',
+      badge: content.badges.async,
+      description: isChinese
+        ? '添加 async=true 创建后台任务。拿到 task_id 后轮询任务接口，直到状态为 SUCCESS 或 FAILED。'
+        : 'Add async=true to create a background task. Poll the returned task id until status is SUCCESS or FAILED.',
+      code: `TASK_ID=$(curl -s "${baseUrl}/v1/images/generations?async=true" \\
   -H "Authorization: Bearer sk-your-api-key" \\
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: image-async-$(date +%s)" \\
@@ -161,14 +390,17 @@ export function Docs() {
 
 curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
   -H "Authorization: Bearer sk-your-api-key"`,
-      },
-      {
-        id: 'visionary-sync',
-        title: 'Visionary Nano_Banana_Pro generation',
-        badge: 'Visionary',
-        description:
-          'Nano_Banana_Pro uses native ratio fields. Prefer aspect_ratio and imageSize instead of size.',
-        code: `curl ${baseUrl}/v1/images/generations \\
+    },
+    {
+      id: 'visionary-sync',
+      title: isChinese
+        ? 'Visionary Nano_Banana_Pro 生图'
+        : 'Visionary Nano_Banana_Pro generation',
+      badge: content.badges.visionary,
+      description: isChinese
+        ? 'Nano_Banana_Pro 使用原生比例字段，建议使用 aspect_ratio 和 imageSize，不要只传 size。'
+        : 'Nano_Banana_Pro uses native ratio fields. Prefer aspect_ratio and imageSize instead of size.',
+      code: `curl ${baseUrl}/v1/images/generations \\
   -H "Authorization: Bearer sk-your-api-key" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -178,14 +410,17 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
     "imageSize": "2K",
     "n": 1
   }'`,
-      },
-      {
-        id: 'visionary-async',
-        title: 'Visionary Nano_Banana_Pro asynchronous generation',
-        badge: 'Async',
-        description:
-          'Use the same body as synchronous generation and add async=true. Query the task endpoint for progress and result URLs.',
-        code: `TASK_ID=$(curl -s "${baseUrl}/v1/images/generations?async=true" \\
+    },
+    {
+      id: 'visionary-async',
+      title: isChinese
+        ? 'Visionary Nano_Banana_Pro 异步生图'
+        : 'Visionary Nano_Banana_Pro asynchronous generation',
+      badge: content.badges.async,
+      description: isChinese
+        ? '请求体和同步生图一致，只需要添加 async=true。后续通过任务接口查询进度和结果 URL。'
+        : 'Use the same body as synchronous generation and add async=true. Query the task endpoint for progress and result URLs.',
+      code: `TASK_ID=$(curl -s "${baseUrl}/v1/images/generations?async=true" \\
   -H "Authorization: Bearer sk-your-api-key" \\
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: visionary-$(date +%s)" \\
@@ -199,14 +434,17 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
 
 curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
   -H "Authorization: Bearer sk-your-api-key"`,
-      },
-      {
-        id: 'gemini-native',
-        title: 'Gemini native generateContent',
-        badge: 'Gemini',
-        description:
-          'Use this when the client already speaks Gemini format. The model name is part of the URL.',
-        code: `curl ${baseUrl}/v1beta/models/gemini-3-pro-image-preview:generateContent \\
+    },
+    {
+      id: 'gemini-native',
+      title: isChinese
+        ? 'Gemini 原生 generateContent'
+        : 'Gemini native generateContent',
+      badge: content.badges.gemini,
+      description: isChinese
+        ? '当客户端本身使用 Gemini 格式时，用这个接口。模型名写在 URL 里。'
+        : 'Use this when the client already speaks Gemini format. The model name is part of the URL.',
+      code: `curl ${baseUrl}/v1beta/models/gemini-3-pro-image-preview:generateContent \\
   -H "Authorization: Bearer sk-your-api-key" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -232,14 +470,17 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
       }
     }
   }'`,
-      },
-      {
-        id: 'gemini-image-sync',
-        title: 'Gemini through /v1/images/generations',
-        badge: 'Sync',
-        description:
-          'Use this when your client expects OpenAI-style image APIs but the selected upstream model is Gemini.',
-        code: `curl ${baseUrl}/v1/images/generations \\
+    },
+    {
+      id: 'gemini-image-sync',
+      title: isChinese
+        ? 'Gemini 通过 /v1/images/generations 调用'
+        : 'Gemini through /v1/images/generations',
+      badge: content.badges.sync,
+      description: isChinese
+        ? '当客户端希望使用 OpenAI 风格图片接口，但上游模型是 Gemini 时，用这个方式。'
+        : 'Use this when your client expects OpenAI-style image APIs but the selected upstream model is Gemini.',
+      code: `curl ${baseUrl}/v1/images/generations \\
   -H "Authorization: Bearer sk-your-api-key" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -249,14 +490,15 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
     "imageSize": "2K",
     "n": 1
   }'`,
-      },
-      {
-        id: 'gemini-image-async',
-        title: 'Gemini asynchronous generation',
-        badge: 'Async',
-        description:
-          'Add async=true to run Gemini image generation as a background task and query progress later.',
-        code: `TASK_ID=$(curl -s "${baseUrl}/v1/images/generations?async=true" \\
+    },
+    {
+      id: 'gemini-image-async',
+      title: isChinese ? 'Gemini 异步生图' : 'Gemini asynchronous generation',
+      badge: content.badges.async,
+      description: isChinese
+        ? '添加 async=true 后，Gemini 生图会作为后台任务运行，稍后通过任务接口查询。'
+        : 'Add async=true to run Gemini image generation as a background task and query progress later.',
+      code: `TASK_ID=$(curl -s "${baseUrl}/v1/images/generations?async=true" \\
   -H "Authorization: Bearer sk-your-api-key" \\
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: gemini-image-$(date +%s)" \\
@@ -270,14 +512,17 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
 
 curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
   -H "Authorization: Bearer sk-your-api-key"`,
-      },
-      {
-        id: 'gemini-edit-async',
-        title: 'Gemini asynchronous image editing',
-        badge: 'Edit',
-        description:
-          'Use /v1/images/edits?async=true when you need image-to-image editing with input image URLs.',
-        code: `TASK_ID=$(curl -s "${baseUrl}/v1/images/edits?async=true" \\
+    },
+    {
+      id: 'gemini-edit-async',
+      title: isChinese
+        ? 'Gemini 异步图片编辑'
+        : 'Gemini asynchronous image editing',
+      badge: content.badges.edit,
+      description: isChinese
+        ? '需要图生图或图片编辑时，使用 /v1/images/edits?async=true，并传入输入图片 URL。'
+        : 'Use /v1/images/edits?async=true when you need image-to-image editing with input image URLs.',
+      code: `TASK_ID=$(curl -s "${baseUrl}/v1/images/edits?async=true" \\
   -H "Authorization: Bearer sk-your-api-key" \\
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: gemini-edit-$(date +%s)" \\
@@ -292,9 +537,22 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
 
 curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
   -H "Authorization: Bearer sk-your-api-key"`,
-      },
-    ],
-    [baseUrl]
+    },
+  ]
+}
+
+export function Docs() {
+  const { i18n } = useTranslation()
+  const { status } = useStatus()
+  const baseUrl = useMemo(() => getOrigin(), [])
+  const externalDocs = String(status?.docs_link || '').trim()
+  const isChinese =
+    i18n.resolvedLanguage?.toLowerCase().startsWith('zh') ||
+    i18n.language?.toLowerCase().startsWith('zh')
+
+  const content = useMemo(
+    () => createDocsContent({ baseUrl, isChinese }),
+    [baseUrl, isChinese]
   )
 
   return (
@@ -303,23 +561,20 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
         <section className='grid gap-8 pt-8 lg:grid-cols-[1fr_20rem] lg:items-end'>
           <div className='space-y-5'>
             <Badge variant='outline' className='rounded-md'>
-              Aittco API Documentation
+              {content.hero.badge}
             </Badge>
             <div className='space-y-4'>
               <h1 className='max-w-3xl text-4xl leading-[1.02] font-semibold tracking-normal text-balance md:text-6xl'>
-                One accurate guide for your gateway.
+                {content.hero.title}
               </h1>
               <p className='text-muted-foreground max-w-2xl text-base leading-7 md:text-lg'>
-                Use these examples with your own API key and the models enabled
-                in this gateway. Image generation supports synchronous requests,
-                background tasks, task polling, Gemini native format, and
-                provider-specific image parameters.
+                {content.hero.description}
               </p>
             </div>
             <div className='flex flex-wrap gap-3'>
               <Button render={<a href='#image-examples' />}>
                 <ImageIcon className='size-4' />
-                Image examples
+                {content.hero.imageExamples}
               </Button>
               {externalDocs ? (
                 <Button
@@ -333,7 +588,7 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
                   }
                 >
                   <ExternalLink className='size-4' />
-                  External reference
+                  {content.hero.externalReference}
                 </Button>
               ) : null}
             </div>
@@ -343,24 +598,22 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <Route className='size-4' />
-                Base URL
+                {content.base.title}
               </CardTitle>
-              <CardDescription>
-                Requests should use this site as the API host.
-              </CardDescription>
+              <CardDescription>{content.base.description}</CardDescription>
             </CardHeader>
             <CardContent className='space-y-3'>
               <CodeInline value={baseUrl} />
               <div className='text-muted-foreground flex items-center gap-2 text-sm'>
                 <KeyRound className='size-4' />
-                Authorization: Bearer sk-your-api-key
+                {content.base.authorization}
               </div>
             </CardContent>
           </Card>
         </section>
 
         <section className='grid gap-4 md:grid-cols-3'>
-          {endpointGroups.map((group) => (
+          {content.endpointGroups.map((group) => (
             <Card key={group.title} className='rounded-lg'>
               <CardHeader>
                 <CardTitle>{group.title}</CardTitle>
@@ -387,26 +640,24 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
         <section className='space-y-4'>
           <SectionHeading
             icon={Workflow}
-            title='How sync and async image calls differ'
-            description='Use synchronous calls for quick tests. Use asynchronous calls for slower image providers, production workflows, and any request that may take tens of seconds.'
+            title={content.syncAsync.title}
+            description={content.syncAsync.description}
           />
           <div className='grid gap-4 md:grid-cols-2'>
             <Card className='rounded-lg'>
               <CardHeader>
                 <CardTitle className='flex items-center gap-2'>
                   <Sparkles className='size-4' />
-                  Synchronous
+                  {content.syncAsync.syncTitle}
                 </CardTitle>
                 <CardDescription>
-                  The HTTP request stays open until the upstream returns.
+                  {content.syncAsync.syncDescription}
                 </CardDescription>
               </CardHeader>
               <CardContent className='space-y-3 text-sm'>
-                <Point>Use POST /v1/images/generations.</Point>
-                <Point>Best for short tests or fast upstream channels.</Point>
-                <Point>
-                  The image URL appears in the response body directly.
-                </Point>
+                {content.syncAsync.syncPoints.map((point) => (
+                  <Point key={point}>{point}</Point>
+                ))}
               </CardContent>
             </Card>
 
@@ -414,19 +665,16 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
               <CardHeader>
                 <CardTitle className='flex items-center gap-2'>
                   <Timer className='size-4' />
-                  Asynchronous
+                  {content.syncAsync.asyncTitle}
                 </CardTitle>
                 <CardDescription>
-                  The first response returns a task id. Results are retrieved
-                  with the task endpoint.
+                  {content.syncAsync.asyncDescription}
                 </CardDescription>
               </CardHeader>
               <CardContent className='space-y-3 text-sm'>
-                <Point>Add async=true to generation or edit endpoints.</Point>
-                <Point>Send Idempotency-Key to avoid duplicate tasks.</Point>
-                <Point>
-                  Poll GET /v1/images/tasks/{'{task_id}'} for progress and URLs.
-                </Point>
+                {content.syncAsync.asyncPoints.map((point) => (
+                  <Point key={point}>{point}</Point>
+                ))}
               </CardContent>
             </Card>
           </div>
@@ -435,21 +683,27 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
         <section className='space-y-4'>
           <SectionHeading
             icon={BookOpen}
-            title='Parameter format by model family'
-            description='Different upstreams accept different image parameter names. Use the format below to avoid model errors.'
+            title={content.parameters.title}
+            description={content.parameters.description}
           />
           <Card className='rounded-lg'>
             <CardContent className='overflow-x-auto p-0'>
               <table className='w-full min-w-[48rem] text-sm'>
                 <thead>
                   <tr className='border-b text-left'>
-                    <th className='px-4 py-3 font-medium'>Field</th>
-                    <th className='px-4 py-3 font-medium'>Use</th>
-                    <th className='px-4 py-3 font-medium'>Notes</th>
+                    <th className='px-4 py-3 font-medium'>
+                      {content.parameters.fieldHeader}
+                    </th>
+                    <th className='px-4 py-3 font-medium'>
+                      {content.parameters.useHeader}
+                    </th>
+                    <th className='px-4 py-3 font-medium'>
+                      {content.parameters.notesHeader}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {parameterRows.map(([field, use, notes]) => (
+                  {content.parameterRows.map(([field, use, notes]) => (
                     <tr key={field} className='border-b last:border-0'>
                       <td className='px-4 py-3 font-mono text-xs'>{field}</td>
                       <td className='px-4 py-3'>{use}</td>
@@ -467,12 +721,17 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
         <section id='image-examples' className='scroll-mt-24 space-y-4'>
           <SectionHeading
             icon={ImageIcon}
-            title='Image API examples'
-            description='Copy these examples, replace the API key, and keep the model name exactly as configured in the model square.'
+            title={content.examplesTitle}
+            description={content.examplesDescription}
           />
           <div className='grid gap-4'>
-            {examples.map((example) => (
-              <ExampleCard key={example.id} example={example} />
+            {content.examples.map((example) => (
+              <ExampleCard
+                key={example.id}
+                example={example}
+                copyLabel={content.copyLabel}
+                copiedLabel={content.copiedLabel}
+              />
             ))}
           </div>
         </section>
@@ -480,20 +739,21 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
         <section className='space-y-4'>
           <SectionHeading
             icon={CheckCircle2}
-            title='Task response and troubleshooting'
-            description='Async tasks are visible in the dashboard task logs. Result images are stored as URLs, and the dashboard shows addresses instead of loading images automatically.'
+            title={content.troubleshooting.title}
+            description={content.troubleshooting.description}
           />
           <div className='grid gap-4 md:grid-cols-2'>
             <Card className='rounded-lg'>
               <CardHeader>
-                <CardTitle>Task query response</CardTitle>
+                <CardTitle>{content.troubleshooting.responseTitle}</CardTitle>
                 <CardDescription>
-                  A finished task includes status, progress, model, and returned
-                  image URLs.
+                  {content.troubleshooting.responseDescription}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <CodeBlock
+                  copyLabel={content.copyLabel}
+                  copiedLabel={content.copiedLabel}
                   code={`{
   "status": "SUCCESS",
   "progress": "100%",
@@ -510,29 +770,15 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
 
             <Card className='rounded-lg'>
               <CardHeader>
-                <CardTitle>Common mistakes</CardTitle>
+                <CardTitle>{content.troubleshooting.mistakesTitle}</CardTitle>
                 <CardDescription>
-                  Most image failures come from mismatched parameter formats or
-                  polling the wrong path.
+                  {content.troubleshooting.mistakesDescription}
                 </CardDescription>
               </CardHeader>
               <CardContent className='space-y-3 text-sm'>
-                <Point>
-                  Use /v1/images/tasks/{'{task_id}'}, not /v1/images/task/
-                  {'{task_id}'}.
-                </Point>
-                <Point>
-                  Use size for gpt-image-2, but aspect_ratio and imageSize for
-                  Gemini or Visionary-style image channels.
-                </Point>
-                <Point>
-                  If the model price is not configured, enable self-use mode or
-                  add model pricing before testing.
-                </Point>
-                <Point>
-                  If a model has multiple channels, confirm each channel accepts
-                  the same parameter format.
-                </Point>
+                {content.troubleshooting.points.map((point) => (
+                  <Point key={point}>{point}</Point>
+                ))}
               </CardContent>
             </Card>
           </div>
@@ -587,6 +833,8 @@ function ExampleCard(props: {
     description: string
     code: string
   }
+  copyLabel: string
+  copiedLabel: string
 }) {
   return (
     <Card className='rounded-lg'>
@@ -600,13 +848,22 @@ function ExampleCard(props: {
         </div>
       </CardHeader>
       <CardContent>
-        <CodeBlock code={props.example.code} />
+        <CodeBlock
+          code={props.example.code}
+          copyLabel={props.copyLabel}
+          copiedLabel={props.copiedLabel}
+        />
       </CardContent>
     </Card>
   )
 }
 
-function CodeBlock(props: { code: string; className?: string }) {
+function CodeBlock(props: {
+  code: string
+  className?: string
+  copyLabel: string
+  copiedLabel: string
+}) {
   const [copied, setCopied] = useState(false)
 
   async function copy() {
@@ -632,7 +889,7 @@ function CodeBlock(props: { code: string; className?: string }) {
           onClick={() => void copy()}
         >
           <Copy className='size-3.5' />
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? props.copiedLabel : props.copyLabel}
         </Button>
       </div>
       <pre className='overflow-x-auto p-4 text-xs leading-6'>
