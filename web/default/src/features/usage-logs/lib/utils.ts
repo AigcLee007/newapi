@@ -279,7 +279,12 @@ export async function fetchLogsByCategory(
       ? { mj_id: searchParams.filter as string | undefined }
       : {}),
     ...(logCategory === 'task'
-      ? { task_id: searchParams.filter as string | undefined }
+      ? {
+          task_id: searchParams.filter as string | undefined,
+          action: searchParams.action as string | undefined,
+          status: searchParams.status as string | undefined,
+          platform: searchParams.platform as string | undefined,
+        }
       : {}),
   }
 

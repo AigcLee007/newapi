@@ -23,6 +23,7 @@ import { type Table } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { useIsAdmin } from '@/hooks/use-admin'
 import { Input } from '@/components/ui/input'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { DataTableToolbar } from '@/components/data-table'
 import { buildSearchParams } from '../lib/filter'
 import { getDefaultTimeRange } from '../lib/utils'
@@ -93,6 +94,11 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
         : {
             ...baseFilters,
             ...(searchParams.filter ? { taskId: searchParams.filter } : {}),
+            ...(searchParams.action ? { action: searchParams.action } : {}),
+            ...(searchParams.status ? { status: searchParams.status } : {}),
+            ...(searchParams.platform
+              ? { platform: searchParams.platform }
+              : {}),
           }
 
     setFilters(next)
@@ -102,6 +108,9 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
     searchParams.endTime,
     searchParams.channel,
     searchParams.filter,
+    searchParams.action,
+    searchParams.status,
+    searchParams.platform,
   ])
 
   const handleChange = useCallback(
@@ -156,12 +165,30 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
   )
 
   const filterValue = getFilterValue(filters, props.logCategory)
+  const handleTaskTypeChange = useCallback((value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      action: value || undefined,
+      platform: value === 'image-sync' ? 'sync-task' : undefined,
+    }))
+  }, [])
+  const handleTaskStatusChange = useCallback((value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      status: value || undefined,
+    }))
+  }, [])
   const placeholder =
     props.logCategory === 'drawing'
       ? t('Filter by Midjourney task ID')
       : t('Filter by task ID')
   const inputClass = 'w-full sm:w-[180px] lg:w-[200px]'
-  const hasAdditionalFilters = !!filterValue || !!filters.channel
+  const taskFilters = filters as TaskLogFilters
+  const hasAdditionalFilters =
+    !!filterValue ||
+    !!filters.channel ||
+    !!taskFilters.action ||
+    !!taskFilters.status
 
   return (
     <DataTableToolbar
@@ -195,6 +222,45 @@ export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
               onKeyDown={handleKeyDown}
               className={inputClass}
             />
+          )}
+          {props.logCategory === 'task' && (
+            <>
+              <NativeSelect
+                aria-label={t('Task Type')}
+                value={taskFilters.action || ''}
+                onChange={(e) => handleTaskTypeChange(e.target.value)}
+                className='w-full sm:w-[170px]'
+              >
+                <NativeSelectOption value=''>
+                  {t('All task types')}
+                </NativeSelectOption>
+                <NativeSelectOption value='image-sync'>
+                  {t('Image Async')}
+                </NativeSelectOption>
+              </NativeSelect>
+              <NativeSelect
+                aria-label={t('Status')}
+                value={taskFilters.status || ''}
+                onChange={(e) => handleTaskStatusChange(e.target.value)}
+                className='w-full sm:w-[150px]'
+              >
+                <NativeSelectOption value=''>
+                  {t('All statuses')}
+                </NativeSelectOption>
+                <NativeSelectOption value='QUEUED'>
+                  {t('Queued')}
+                </NativeSelectOption>
+                <NativeSelectOption value='IN_PROGRESS'>
+                  {t('In Progress')}
+                </NativeSelectOption>
+                <NativeSelectOption value='SUCCESS'>
+                  {t('Success')}
+                </NativeSelectOption>
+                <NativeSelectOption value='FAILURE'>
+                  {t('Failed')}
+                </NativeSelectOption>
+              </NativeSelect>
+            </>
           )}
         </>
       }

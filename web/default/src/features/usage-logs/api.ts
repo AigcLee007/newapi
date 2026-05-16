@@ -25,6 +25,7 @@ import type {
   GetLogStatsResponse,
   GetMidjourneyLogsParams,
   GetTaskLogsParams,
+  ImageAsyncTaskDetail,
   UserInfo,
 } from './types'
 
@@ -109,3 +110,12 @@ export const getAllTaskLogs = (params: GetTaskLogsParams) =>
 
 export const getUserTaskLogs = (params: GetTaskLogsParams) =>
   fetchLogs('/api/task', params, false)
+
+export async function getImageAsyncTaskDetail(taskId: string): Promise<{
+  success: boolean
+  message?: string
+  data?: ImageAsyncTaskDetail
+}> {
+  const res = await api.get(`/api/task/image-async/${taskId}`)
+  return res.data
+}

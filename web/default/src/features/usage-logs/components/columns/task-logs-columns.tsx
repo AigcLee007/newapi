@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 /* eslint-disable react-refresh/only-export-components */
 import { useState, useMemo } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Music } from 'lucide-react'
+import { Eye, Music } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { formatTimestampToDate } from '@/lib/format'
@@ -35,6 +35,7 @@ import {
   type AudioClip,
 } from '../dialogs/audio-preview-dialog'
 import { FailReasonDialog } from '../dialogs/fail-reason-dialog'
+import { ImageAsyncTaskDialog } from '../dialogs/image-async-task-dialog'
 import { useUsageLogsContext } from '../usage-logs-provider'
 import {
   createDurationColumn,
@@ -87,6 +88,11 @@ function AudioPreviewCell({ log }: { log: TaskLog }) {
       />
     </>
   )
+}
+
+function getTaskActionLabel(action: string): string {
+  if (action === 'image-sync') return 'Image Async'
+  return taskActionMapper.getLabel(action)
 }
 
 export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
@@ -231,6 +237,27 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
         const failReason = row.getValue('fail_reason') as string
         const status = log.status
         const [dialogOpen, setDialogOpen] = useState(false)
+
+        if (log.action === 'image-sync') {
+          return (
+            <>
+              <button
+                type='button'
+                className='text-foreground inline-flex items-center gap-1 text-xs font-medium hover:underline'
+                onClick={() => setDialogOpen(true)}
+                title={t(getTaskActionLabel(log.action))}
+              >
+                <Eye className='size-3.5' />
+                {t('View task')}
+              </button>
+              <ImageAsyncTaskDialog
+                taskId={log.task_id}
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+              />
+            </>
+          )
+        }
 
         const isSunoSuccess =
           log.platform === 'suno' && status === TASK_STATUS.SUCCESS

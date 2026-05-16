@@ -67,6 +67,9 @@ export interface DrawingLogFilters extends CommonFilters {
  */
 export interface TaskLogFilters extends CommonFilters {
   taskId?: string
+  action?: string
+  status?: string
+  platform?: string
 }
 
 /**
@@ -245,6 +248,11 @@ export interface TaskLog {
   progress?: string
   progress_message_en?: string
   data?: string // JSON string
+  properties?: {
+    input?: string
+    upstream_model_name?: string
+    origin_model_name?: string
+  }
   fail_reason?: string
   status: string // NOT_START, SUBMITTED, IN_PROGRESS, SUCCESS, FAILURE, QUEUED, UNKNOWN
   other?: string
@@ -323,8 +331,58 @@ export interface GetTaskLogsParams {
   page_size?: number
   channel_id?: string
   task_id?: string
+  action?: string
+  status?: string
+  platform?: string
   start_timestamp?: number
   end_timestamp?: number
+}
+
+export interface ImageAsyncResultObject {
+  index: number
+  provider?: string
+  bucket?: string
+  object_key?: string
+  url?: string
+  content_type?: string
+  size?: number
+  source?: string
+}
+
+export interface ImageAsyncTaskDetail {
+  task_id: string
+  user_id: number
+  username?: string
+  group?: string
+  channel_id: number
+  model?: string
+  status: string
+  progress?: string
+  submit_time: number
+  start_time: number
+  finish_time: number
+  fail_reason?: string
+  quota: number
+  data?: unknown
+  result_objects?: ImageAsyncResultObject[]
+  request?: {
+    path?: string
+    method?: string
+    content_type?: string
+    body_size?: number
+    fields?: Record<string, unknown>
+  }
+  debug?: {
+    worker_node?: string
+    attempt?: number
+    last_error?: string
+    webhook_configured: boolean
+    webhook_done: boolean
+    webhook_attempts?: number
+    billing_finalized: boolean
+    billing_refunded: boolean
+    idempotency_key?: string
+  }
 }
 
 // ============================================================================
