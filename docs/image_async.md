@@ -93,7 +93,7 @@ Submit performs a real pre-consume and stores the pre-consumed quota on the task
 - `IMAGE_ASYNC_MAX_ATTEMPTS`: reserved for retry policy compatibility, default `3`
 - `IMAGE_ASYNC_WORKER_INTERVAL_SECONDS`: worker loop interval, default `2`
 - `IMAGE_ASYNC_WORKER_BATCH_SIZE`: worker scan batch size, default `10`
-- `IMAGE_ASYNC_WORKER_CONCURRENCY`: global worker concurrency, default equals `IMAGE_ASYNC_WORKER_BATCH_SIZE`
+- `IMAGE_ASYNC_WORKER_CONCURRENCY`: global worker concurrency, default equals `IMAGE_ASYNC_WORKER_BATCH_SIZE`; the production compose example sets it to `100`
 - `IMAGE_ASYNC_WORKER_QUEUE_SCAN_SIZE`: queued task candidate scan size before per-user concurrency filtering, default `max(100, batch_size * worker_concurrency * 10)`
 - `IMAGE_ASYNC_USER_GROUP_CONCURRENCY`: per-user running task limit by user group, default `default:2,vip:5,svip:10`. Entries accept `group:limit` or `group=limit`, separated by commas or semicolons.
 - `IMAGE_ASYNC_WEBHOOK_RETRY`: max webhook attempts, default `3`
