@@ -36,6 +36,17 @@ import { defaultTopNavLinks } from '../config/top-nav.config'
 import type { TopNavLink } from '../types'
 import { HeaderLogo } from './header-logo'
 
+function normalizeDocsEntry(link: TopNavLink): TopNavLink {
+  if (link.title === 'Docs') {
+    return {
+      ...link,
+      href: '/docs',
+      external: false,
+    }
+  }
+  return link
+}
+
 export interface PublicHeaderProps {
   navLinks?: TopNavLink[]
   mobileLinks?: TopNavLink[]
@@ -84,12 +95,13 @@ export function PublicHeader(props: PublicHeaderProps) {
   const user = auth.user
   const isAuthenticated = !!user
   const displaySiteName = getDisplaySystemName(customSiteName || systemName)
-  const links =
+  const links = (
     props.navLinks !== undefined
       ? navLinks
       : dynamicLinks.length > 0
         ? dynamicLinks
         : navLinks
+  ).map(normalizeDocsEntry)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
