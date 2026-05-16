@@ -24,6 +24,19 @@ func TestGetQueuedImageAsyncTasksFiltersPlatformActionAndStatus(t *testing.T) {
 	assert.Equal(t, "submitted", tasks[1].TaskID)
 }
 
+func TestCountRunningImageAsyncTasksByUser(t *testing.T) {
+	truncateTables(t)
+
+	insertTask(t, &Task{TaskID: "running_a", UserId: 1, Platform: constant.TaskPlatformSyncTask, Action: constant.ImageAsyncAction, Status: TaskStatusInProgress, Data: json.RawMessage(`{}`)})
+	insertTask(t, &Task{TaskID: "running_b", UserId: 1, Platform: constant.TaskPlatformSyncTask, Action: constant.ImageAsyncAction, Status: TaskStatusInProgress, Data: json.RawMessage(`{}`)})
+	insertTask(t, &Task{TaskID: "queued", UserId: 1, Platform: constant.TaskPlatformSyncTask, Action: constant.ImageAsyncAction, Status: TaskStatusQueued, Data: json.RawMessage(`{}`)})
+	insertTask(t, &Task{TaskID: "other_user", UserId: 2, Platform: constant.TaskPlatformSyncTask, Action: constant.ImageAsyncAction, Status: TaskStatusInProgress, Data: json.RawMessage(`{}`)})
+	insertTask(t, &Task{TaskID: "other_action", UserId: 1, Platform: constant.TaskPlatformSyncTask, Action: "other", Status: TaskStatusInProgress, Data: json.RawMessage(`{}`)})
+
+	assert.Equal(t, 2, CountRunningImageAsyncTasksByUser(1))
+	assert.Equal(t, 1, CountRunningImageAsyncTasksByUser(2))
+}
+
 func TestGetImageAsyncTerminalTasksNeedBillingFiltersByFlags(t *testing.T) {
 	truncateTables(t)
 

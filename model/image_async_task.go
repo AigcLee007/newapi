@@ -15,6 +15,19 @@ func GetQueuedImageAsyncTasks(limit int) []*Task {
 	return tasks
 }
 
+func CountRunningImageAsyncTasksByUser(userId int) int {
+	var count int64
+	err := DB.Model(&Task{}).
+		Where("platform = ? and action = ?", constant.TaskPlatformSyncTask, constant.ImageAsyncAction).
+		Where("user_id = ?", userId).
+		Where("status = ?", TaskStatusInProgress).
+		Count(&count).Error
+	if err != nil {
+		return 0
+	}
+	return int(count)
+}
+
 func GetRecoverableImageAsyncTasks(cutoffUnix int64, limit int) []*Task {
 	var tasks []*Task
 	err := DB.Where("platform = ? and action = ?", constant.TaskPlatformSyncTask, constant.ImageAsyncAction).

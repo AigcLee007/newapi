@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -47,12 +48,58 @@ func StartImageAsyncWorker() {
 func runImageAsyncWorkerOnce() {
 	ctx := context.Background()
 	recoverImageAsyncTasks(ctx)
-	for _, task := range model.GetQueuedImageAsyncTasks(imageAsyncWorkerBatchSize()) {
-		processImageAsyncTask(ctx, task)
-	}
+	processQueuedImageAsyncTasks(ctx)
 	compensateImageAsyncBilling(ctx)
 	sendPendingImageAsyncWebhooks(ctx)
 	cleanupImageAsyncBodies()
+}
+
+func processQueuedImageAsyncTasks(ctx context.Context) {
+	tasks := model.GetQueuedImageAsyncTasks(imageAsyncWorkerQueueScanSize())
+	if len(tasks) == 0 {
+		return
+	}
+
+	concurrency := imageAsyncWorkerConcurrency()
+	if concurrency <= 1 {
+		for _, task := range tasks {
+			if canStartImageAsyncTask(task, nil) {
+				processImageAsyncTask(ctx, task)
+			}
+		}
+		return
+	}
+
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+	plannedByUser := make(map[int]int)
+
+	for _, task := range tasks {
+		if !canStartImageAsyncTask(task, plannedByUser) {
+			continue
+		}
+		plannedByUser[task.UserId]++
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(task *model.Task) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			processImageAsyncTask(ctx, task)
+		}(task)
+	}
+	wg.Wait()
+}
+
+func canStartImageAsyncTask(task *model.Task, plannedByUser map[int]int) bool {
+	limit := imageAsyncUserGroupConcurrency(task.Group)
+	if limit <= 0 {
+		return false
+	}
+	running := model.CountRunningImageAsyncTasksByUser(task.UserId)
+	if plannedByUser != nil {
+		running += plannedByUser[task.UserId]
+	}
+	return running < limit
 }
 
 func processImageAsyncTask(ctx context.Context, task *model.Task) {
@@ -363,6 +410,15 @@ func imageAsyncWorkerInterval() time.Duration {
 	return 2 * time.Second
 }
 
+func imageAsyncWorkerConcurrency() int {
+	if raw := os.Getenv("IMAGE_ASYNC_WORKER_CONCURRENCY"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			return parsed
+		}
+	}
+	return imageAsyncWorkerBatchSize()
+}
+
 func imageAsyncFeatureEnabled() bool {
 	return !strings.EqualFold(os.Getenv("IMAGE_ASYNC_ENABLED"), "false")
 }
@@ -378,6 +434,58 @@ func imageAsyncWorkerBatchSize() int {
 		}
 	}
 	return 10
+}
+
+func imageAsyncWorkerQueueScanSize() int {
+	if raw := os.Getenv("IMAGE_ASYNC_WORKER_QUEUE_SCAN_SIZE"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			return parsed
+		}
+	}
+	batchSize := imageAsyncWorkerBatchSize()
+	concurrency := imageAsyncWorkerConcurrency()
+	scanSize := batchSize * concurrency * 10
+	if scanSize < 100 {
+		return 100
+	}
+	return scanSize
+}
+
+func imageAsyncUserGroupConcurrency(group string) int {
+	limits := map[string]int{
+		"default": 2,
+		"vip":     5,
+		"svip":    10,
+	}
+	if raw := strings.TrimSpace(os.Getenv("IMAGE_ASYNC_USER_GROUP_CONCURRENCY")); raw != "" {
+		for _, part := range strings.FieldsFunc(raw, func(r rune) bool {
+			return r == ',' || r == ';'
+		}) {
+			key, value, ok := strings.Cut(part, ":")
+			if !ok {
+				key, value, ok = strings.Cut(part, "=")
+			}
+			if !ok {
+				continue
+			}
+			key = strings.ToLower(strings.TrimSpace(key))
+			if key == "" {
+				continue
+			}
+			parsed, err := strconv.Atoi(strings.TrimSpace(value))
+			if err == nil && parsed > 0 {
+				limits[key] = parsed
+			}
+		}
+	}
+	key := strings.ToLower(strings.TrimSpace(group))
+	if key == "" {
+		key = "default"
+	}
+	if limit, ok := limits[key]; ok {
+		return limit
+	}
+	return limits["default"]
 }
 
 func imageAsyncTaskTimeoutSeconds() int64 {
