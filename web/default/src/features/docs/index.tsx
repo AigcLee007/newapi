@@ -21,7 +21,6 @@ import {
   BookOpen,
   CheckCircle2,
   Copy,
-  ExternalLink,
   Image as ImageIcon,
   KeyRound,
   Route,
@@ -31,7 +30,6 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import { useStatus } from '@/hooks/use-status'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -75,7 +73,6 @@ function createDocsContent(props: { baseUrl: string; isChinese: boolean }) {
       description:
         'Use these examples with your own API key and the models enabled in this gateway. Image generation supports synchronous requests, background tasks, task polling, Gemini native format, and provider-specific image parameters.',
       imageExamples: 'Image examples',
-      externalReference: 'External reference',
     },
     base: {
       title: 'Base URL',
@@ -215,7 +212,6 @@ function createDocsContent(props: { baseUrl: string; isChinese: boolean }) {
       description:
         '使用你自己的 API 密钥和本站已启用的模型即可调用。当前生图能力支持同步请求、异步任务、任务轮询、Gemini 原生格式，以及不同上游模型自己的图片参数格式。',
       imageExamples: '生图示例',
-      externalReference: '外部参考',
     },
     base: {
       title: '基础地址',
@@ -543,9 +539,7 @@ curl -s "${baseUrl}/v1/images/tasks/$TASK_ID" \\
 
 export function Docs() {
   const { i18n } = useTranslation()
-  const { status } = useStatus()
   const baseUrl = useMemo(() => getOrigin(), [])
-  const externalDocs = String(status?.docs_link || '').trim()
   const isChinese =
     i18n.resolvedLanguage?.toLowerCase().startsWith('zh') ||
     i18n.language?.toLowerCase().startsWith('zh')
@@ -576,21 +570,6 @@ export function Docs() {
                 <ImageIcon className='size-4' />
                 {content.hero.imageExamples}
               </Button>
-              {externalDocs ? (
-                <Button
-                  variant='outline'
-                  render={
-                    <a
-                      href={externalDocs}
-                      target='_blank'
-                      rel='noopener noreferrer'
-                    />
-                  }
-                >
-                  <ExternalLink className='size-4' />
-                  {content.hero.externalReference}
-                </Button>
-              ) : null}
             </div>
           </div>
 
