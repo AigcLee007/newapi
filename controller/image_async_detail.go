@@ -16,6 +16,7 @@ type imageAsyncTaskDetail struct {
 	UserID        int                            `json:"user_id"`
 	Username      string                         `json:"username,omitempty"`
 	Group         string                         `json:"group,omitempty"`
+	UserGroup     string                         `json:"user_group,omitempty"`
 	ChannelID     int                            `json:"channel_id"`
 	Model         string                         `json:"model,omitempty"`
 	Status        string                         `json:"status"`
@@ -89,6 +90,7 @@ func buildImageAsyncTaskDetail(task *model.Task) imageAsyncTaskDetail {
 		UserID:     task.UserId,
 		Username:   username,
 		Group:      task.Group,
+		UserGroup:  task.GetImageAsyncUserGroup(),
 		ChannelID:  task.ChannelId,
 		Model:      task.Properties.OriginModelName,
 		Status:     string(task.Status),

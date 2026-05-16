@@ -354,6 +354,7 @@ export interface ImageAsyncTaskDetail {
   user_id: number
   username?: string
   group?: string
+  user_group?: string
   channel_id: number
   model?: string
   status: string

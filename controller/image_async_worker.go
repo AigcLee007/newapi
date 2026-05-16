@@ -84,7 +84,7 @@ func processQueuedImageAsyncTasks(ctx context.Context) {
 }
 
 func canStartImageAsyncTask(task *model.Task, plannedByUser map[int]int) bool {
-	limit := imageAsyncUserGroupConcurrency(task.Group)
+	limit := imageAsyncUserGroupConcurrency(task.GetImageAsyncUserGroup())
 	if limit <= 0 {
 		return false
 	}
@@ -105,17 +105,29 @@ func tryAcquireImageAsyncWorkerSlot() (func(), bool) {
 	if imageAsyncWorkerSlots == nil {
 		imageAsyncWorkerSlots = make(chan struct{}, concurrency)
 	}
-	slots := imageAsyncWorkerSlots
-	imageAsyncWorkerSlotsMu.Unlock()
-
-	select {
-	case slots <- struct{}{}:
-		return func() {
-			<-slots
-		}, true
-	default:
+	if cap(imageAsyncWorkerSlots) != concurrency && len(imageAsyncWorkerSlots) <= concurrency {
+		active := len(imageAsyncWorkerSlots)
+		resized := make(chan struct{}, concurrency)
+		for i := 0; i < active; i++ {
+			resized <- struct{}{}
+		}
+		imageAsyncWorkerSlots = resized
+	}
+	if len(imageAsyncWorkerSlots) >= concurrency {
+		imageAsyncWorkerSlotsMu.Unlock()
 		return nil, false
 	}
+	imageAsyncWorkerSlots <- struct{}{}
+	imageAsyncWorkerSlotsMu.Unlock()
+
+	var releaseOnce sync.Once
+	return func() {
+		releaseOnce.Do(func() {
+			imageAsyncWorkerSlotsMu.Lock()
+			defer imageAsyncWorkerSlotsMu.Unlock()
+			<-imageAsyncWorkerSlots
+		})
+	}, true
 }
 
 func processImageAsyncTask(ctx context.Context, task *model.Task) {
@@ -287,7 +299,7 @@ func newImageAsyncReplayContext(task *model.Task, body []byte) (*gin.Context, *h
 	c.Set(common.KeyBodyStorage, storage)
 	common.SetContextKey(c, constant.ContextKeyUserId, task.UserId)
 	common.SetContextKey(c, constant.ContextKeyUsingGroup, task.Group)
-	common.SetContextKey(c, constant.ContextKeyUserGroup, task.Group)
+	common.SetContextKey(c, constant.ContextKeyUserGroup, task.GetImageAsyncUserGroup())
 	common.SetContextKey(c, constant.ContextKeyTokenGroup, task.Group)
 	common.SetContextKey(c, constant.ContextKeyTokenId, task.PrivateData.TokenId)
 	common.SetContextKey(c, constant.ContextKeyOriginalModel, task.Properties.OriginModelName)
@@ -312,7 +324,7 @@ func applyImageAsyncBillingSnapshot(task *model.Task, info *relaycommon.RelayInf
 	info.TokenId = task.PrivateData.TokenId
 	info.FinalPreConsumedQuota = task.Quota
 	info.UsingGroup = task.Group
-	info.UserGroup = task.Group
+	info.UserGroup = task.GetImageAsyncUserGroup()
 	info.TokenGroup = task.Group
 }
 

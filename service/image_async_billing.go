@@ -36,6 +36,7 @@ func FinalizeImageAsyncSuccessBilling(c *gin.Context, task *model.Task, info *re
 		info.UserId = task.UserId
 		info.TokenId = task.PrivateData.TokenId
 		info.UsingGroup = task.Group
+		info.UserGroup = task.GetImageAsyncUserGroup()
 		info.ChannelId = task.ChannelId
 		PostTextConsumeQuota(c, info, usage, logContent)
 	} else if usage != nil && usage.TotalTokens > 0 {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql/driver"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -115,6 +116,7 @@ type ImageAsyncPrivateData struct {
 	BodyPath         string                   `json:"body_path,omitempty"`
 	BodySHA256       string                   `json:"body_sha256,omitempty"`
 	BodySize         int64                    `json:"body_size,omitempty"`
+	UserGroup        string                   `json:"user_group,omitempty"`
 	RelayMode        int                      `json:"relay_mode,omitempty"`
 	RelayFormat      string                   `json:"relay_format,omitempty"`
 	WebhookURL       string                   `json:"webhook_url,omitempty"`
@@ -129,6 +131,23 @@ type ImageAsyncPrivateData struct {
 	Attempt          int                      `json:"attempt,omitempty"`
 	LastError        string                   `json:"last_error,omitempty"`
 	ResultObjects    []ImageAsyncResultObject `json:"result_objects,omitempty"`
+}
+
+func (t *Task) GetImageAsyncUserGroup() string {
+	if t == nil {
+		return ""
+	}
+	if imageAsync := t.PrivateData.ImageAsync; imageAsync != nil {
+		if group := strings.TrimSpace(imageAsync.UserGroup); group != "" {
+			return group
+		}
+	}
+	if group, err := GetUserGroup(t.UserId, false); err == nil {
+		if group = strings.TrimSpace(group); group != "" {
+			return group
+		}
+	}
+	return strings.TrimSpace(t.Group)
 }
 
 type ImageAsyncResultObject struct {

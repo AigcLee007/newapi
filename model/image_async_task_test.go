@@ -37,6 +37,17 @@ func TestCountRunningImageAsyncTasksByUser(t *testing.T) {
 	assert.Equal(t, 1, CountRunningImageAsyncTasksByUser(2))
 }
 
+func TestGetImageAsyncUserGroupPrefersStoredUserGroup(t *testing.T) {
+	task := &Task{
+		Group: "default",
+		PrivateData: TaskPrivateData{ImageAsync: &ImageAsyncPrivateData{
+			UserGroup: "vip",
+		}},
+	}
+
+	assert.Equal(t, "vip", task.GetImageAsyncUserGroup())
+}
+
 func TestGetImageAsyncTerminalTasksNeedBillingFiltersByFlags(t *testing.T) {
 	truncateTables(t)
 

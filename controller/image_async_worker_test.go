@@ -81,3 +81,32 @@ func TestTryAcquireImageAsyncWorkerSlotRespectsConcurrency(t *testing.T) {
 	releaseB()
 	releaseC()
 }
+
+func TestTryAcquireImageAsyncWorkerSlotResizesWhenConcurrencyChanges(t *testing.T) {
+	resetImageAsyncWorkerSlotsForTest(t)
+	t.Setenv("IMAGE_ASYNC_WORKER_CONCURRENCY", "1")
+
+	releaseA, ok := tryAcquireImageAsyncWorkerSlot()
+	require.True(t, ok)
+	_, ok = tryAcquireImageAsyncWorkerSlot()
+	require.False(t, ok)
+
+	t.Setenv("IMAGE_ASYNC_WORKER_CONCURRENCY", "2")
+	releaseB, ok := tryAcquireImageAsyncWorkerSlot()
+	require.True(t, ok)
+	_, ok = tryAcquireImageAsyncWorkerSlot()
+	require.False(t, ok)
+
+	t.Setenv("IMAGE_ASYNC_WORKER_CONCURRENCY", "1")
+	_, ok = tryAcquireImageAsyncWorkerSlot()
+	require.False(t, ok)
+
+	releaseA()
+	_, ok = tryAcquireImageAsyncWorkerSlot()
+	require.False(t, ok)
+
+	releaseB()
+	releaseC, ok := tryAcquireImageAsyncWorkerSlot()
+	require.True(t, ok)
+	releaseC()
+}

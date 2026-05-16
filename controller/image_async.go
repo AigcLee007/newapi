@@ -155,6 +155,7 @@ func RelayImageAsyncSubmit(c *gin.Context) {
 		BodyPath:       bodyPath,
 		BodySHA256:     savedSHA,
 		BodySize:       bodySize,
+		UserGroup:      relayInfo.UserGroup,
 		RelayMode:      replayRelayMode,
 		RelayFormat:    string(types.RelayFormatOpenAIImage),
 		WebhookURL:     c.Query("webhook"),
