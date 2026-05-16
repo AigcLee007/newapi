@@ -28,6 +28,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var (
+	imageAsyncWorkerSlotsMu sync.Mutex
+	imageAsyncWorkerSlots   chan struct{}
+)
+
 func StartImageAsyncWorker() {
 	if !imageAsyncFeatureEnabled() || !imageAsyncWorkerEnabled() {
 		return
@@ -60,34 +65,22 @@ func processQueuedImageAsyncTasks(ctx context.Context) {
 		return
 	}
 
-	concurrency := imageAsyncWorkerConcurrency()
-	if concurrency <= 1 {
-		for _, task := range tasks {
-			if canStartImageAsyncTask(task, nil) {
-				processImageAsyncTask(ctx, task)
-			}
-		}
-		return
-	}
-
-	sem := make(chan struct{}, concurrency)
-	var wg sync.WaitGroup
 	plannedByUser := make(map[int]int)
 
 	for _, task := range tasks {
 		if !canStartImageAsyncTask(task, plannedByUser) {
 			continue
 		}
+		release, ok := tryAcquireImageAsyncWorkerSlot()
+		if !ok {
+			return
+		}
 		plannedByUser[task.UserId]++
-		sem <- struct{}{}
-		wg.Add(1)
 		go func(task *model.Task) {
-			defer wg.Done()
-			defer func() { <-sem }()
+			defer release()
 			processImageAsyncTask(ctx, task)
 		}(task)
 	}
-	wg.Wait()
 }
 
 func canStartImageAsyncTask(task *model.Task, plannedByUser map[int]int) bool {
@@ -100,6 +93,29 @@ func canStartImageAsyncTask(task *model.Task, plannedByUser map[int]int) bool {
 		running += plannedByUser[task.UserId]
 	}
 	return running < limit
+}
+
+func tryAcquireImageAsyncWorkerSlot() (func(), bool) {
+	concurrency := imageAsyncWorkerConcurrency()
+	if concurrency <= 0 {
+		return nil, false
+	}
+
+	imageAsyncWorkerSlotsMu.Lock()
+	if imageAsyncWorkerSlots == nil {
+		imageAsyncWorkerSlots = make(chan struct{}, concurrency)
+	}
+	slots := imageAsyncWorkerSlots
+	imageAsyncWorkerSlotsMu.Unlock()
+
+	select {
+	case slots <- struct{}{}:
+		return func() {
+			<-slots
+		}, true
+	default:
+		return nil, false
+	}
 }
 
 func processImageAsyncTask(ctx context.Context, task *model.Task) {

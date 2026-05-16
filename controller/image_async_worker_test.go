@@ -6,6 +6,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func resetImageAsyncWorkerSlotsForTest(t *testing.T) {
+	t.Helper()
+	imageAsyncWorkerSlotsMu.Lock()
+	original := imageAsyncWorkerSlots
+	imageAsyncWorkerSlots = nil
+	imageAsyncWorkerSlotsMu.Unlock()
+	t.Cleanup(func() {
+		imageAsyncWorkerSlotsMu.Lock()
+		imageAsyncWorkerSlots = original
+		imageAsyncWorkerSlotsMu.Unlock()
+	})
+}
+
 func TestImageAsyncUserGroupConcurrencyDefaults(t *testing.T) {
 	require.Equal(t, 2, imageAsyncUserGroupConcurrency(""))
 	require.Equal(t, 2, imageAsyncUserGroupConcurrency("default"))
@@ -48,4 +61,23 @@ func TestImageAsyncWorkerQueueScanSizeOverride(t *testing.T) {
 	t.Setenv("IMAGE_ASYNC_WORKER_QUEUE_SCAN_SIZE", "50")
 
 	require.Equal(t, 50, imageAsyncWorkerQueueScanSize())
+}
+
+func TestTryAcquireImageAsyncWorkerSlotRespectsConcurrency(t *testing.T) {
+	resetImageAsyncWorkerSlotsForTest(t)
+	t.Setenv("IMAGE_ASYNC_WORKER_CONCURRENCY", "2")
+
+	releaseA, ok := tryAcquireImageAsyncWorkerSlot()
+	require.True(t, ok)
+	releaseB, ok := tryAcquireImageAsyncWorkerSlot()
+	require.True(t, ok)
+	_, ok = tryAcquireImageAsyncWorkerSlot()
+	require.False(t, ok)
+
+	releaseA()
+	releaseC, ok := tryAcquireImageAsyncWorkerSlot()
+	require.True(t, ok)
+
+	releaseB()
+	releaseC()
 }
