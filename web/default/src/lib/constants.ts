@@ -21,8 +21,13 @@ For commercial licensing, please contact support@quantumnous.com
  */
 
 // System Configuration Defaults
-export const DEFAULT_SYSTEM_NAME = 'New API'
+export const DEFAULT_SYSTEM_NAME = 'Aittco'
 export const DEFAULT_LOGO = '/logo.png'
+
+export function getDisplaySystemName(name?: string | null): string {
+  const trimmed = name?.trim()
+  return !trimmed || trimmed === 'New API' ? DEFAULT_SYSTEM_NAME : trimmed
+}
 
 // LocalStorage Keys
 export const STORAGE_KEYS = {

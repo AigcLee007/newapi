@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useSystemConfig } from '@/hooks/use-system-config'
 import { Button } from '@/components/ui/button'
 
 interface HeroProps {
@@ -29,8 +28,6 @@ interface HeroProps {
 
 export function Hero(props: HeroProps) {
   const { t } = useTranslation()
-  const { systemName, logo } = useSystemConfig()
-  const brandName = systemName || 'Aittco'
   const primaryTarget = props.isAuthenticated ? '/dashboard' : '/sign-in'
   const primaryLabel = props.isAuthenticated
     ? t('Open workspace')
@@ -50,8 +47,8 @@ export function Hero(props: HeroProps) {
         aria-hidden
         className='absolute inset-x-0 top-0 -z-10 h-px bg-[#1d1b16]/10 dark:bg-white/10'
       />
-      <div className='mx-auto grid w-full max-w-7xl items-center gap-14 pb-14 md:grid-cols-[minmax(0,1fr)_26rem] md:gap-20 md:pb-18 lg:gap-28'>
-        <div className='max-w-[48rem]'>
+      <div className='mx-auto grid w-full max-w-7xl items-center gap-14 pb-14 md:grid-cols-[minmax(0,1fr)_27rem] md:gap-20 md:pb-18 lg:gap-24'>
+        <div className='max-w-[52rem]'>
           <p
             className='landing-animate-fade-up mb-6 text-sm font-extrabold text-[#7f3a10] uppercase dark:text-[#d6a47b]'
             style={{ animationDelay: '0ms' }}
@@ -59,13 +56,13 @@ export function Hero(props: HeroProps) {
             {t('One place for every model')}
           </p>
           <h1
-            className='landing-animate-fade-up max-w-[760px] text-[clamp(4.5rem,8.2vw,6.9rem)] leading-[0.92] font-extrabold tracking-normal'
+            className='landing-animate-fade-up max-w-[820px] text-[clamp(3.45rem,6.4vw,5.75rem)] leading-[1.03] font-extrabold tracking-normal'
             style={{ animationDelay: '70ms' }}
           >
             {t('Route every request with intent.')}
           </h1>
           <p
-            className='landing-animate-fade-up mt-7 max-w-2xl text-xl leading-8 text-[#443e34] md:text-[1.35rem] dark:text-[#cfc6b8]'
+            className='landing-animate-fade-up mt-8 max-w-[46rem] text-xl leading-8 text-[#443e34] md:text-[1.3rem] md:leading-9 dark:text-[#cfc6b8]'
             style={{ animationDelay: '140ms' }}
           >
             {t(
