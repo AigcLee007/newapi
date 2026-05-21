@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -195,6 +196,74 @@ func ThinkingAdaptor(geminiRequest *dto.GeminiChatRequest, info *relaycommon.Rel
 			info.ReasoningEffort = level
 		}
 	}
+}
+
+func parseInlineImageURLForGemini(imageURL string, providedMimeType string) (string, string, bool, error) {
+	cleanData := strings.TrimSpace(imageURL)
+	for {
+		next := strings.TrimPrefix(cleanData, "base64:")
+		if next == cleanData {
+			break
+		}
+		cleanData = strings.TrimSpace(next)
+	}
+
+	mimeType := strings.TrimSpace(providedMimeType)
+	if !strings.HasPrefix(cleanData, "data:") {
+		return "", "", false, nil
+	}
+
+	idx := strings.Index(cleanData, ",")
+	if idx == -1 {
+		return "", "", false, fmt.Errorf("invalid data URL image source")
+	}
+
+	header := cleanData[:idx]
+	cleanData = cleanData[idx+1:]
+	if !strings.Contains(strings.ToLower(header), ";base64") {
+		return "", "", false, fmt.Errorf("data URL image source is not base64 encoded")
+	}
+
+	if mimeType == "" {
+		mimeStart := strings.Index(header, ":")
+		mimeEnd := strings.Index(header, ";")
+		if mimeStart != -1 && mimeEnd != -1 && mimeStart+1 < mimeEnd {
+			mimeType = header[mimeStart+1 : mimeEnd]
+		}
+	}
+	if mimeType == "" {
+		mimeType = "image/jpeg"
+	}
+
+	cleanData = strings.Map(func(r rune) rune {
+		if r == '\r' || r == '\n' || r == '\t' || r == ' ' {
+			return -1
+		}
+		return r
+	}, cleanData)
+
+	decodedData, err := decodeInlineImageBase64ForGemini(cleanData)
+	if err != nil {
+		return "", "", false, fmt.Errorf("decode inline image data for Gemini failed: %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(decodedData), mimeType, true, nil
+}
+
+func decodeInlineImageBase64ForGemini(cleanData string) ([]byte, error) {
+	if decodedData, err := base64.StdEncoding.DecodeString(cleanData); err == nil {
+		return decodedData, nil
+	}
+	if decodedData, err := base64.RawStdEncoding.DecodeString(strings.TrimRight(cleanData, "=")); err == nil {
+		return decodedData, nil
+	}
+	if decodedData, err := base64.URLEncoding.DecodeString(cleanData); err == nil {
+		return decodedData, nil
+	}
+	if decodedData, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(cleanData, "=")); err == nil {
+		return decodedData, nil
+	}
+	return nil, fmt.Errorf("failed to decode base64 data")
 }
 
 // Setting safety to the lowest possible values since Gemini is already powerless enough
@@ -586,6 +655,24 @@ func CovertOpenAI2Gemini(c *gin.Context, textRequest dto.GeneralOpenAIRequest, i
 					})
 				}
 			} else {
+				if part.Type == dto.ContentTypeImageURL {
+					if img := part.GetImageMedia(); img != nil {
+						base64Data, mimeType, ok, err := parseInlineImageURLForGemini(img.Url, img.MimeType)
+						if err != nil {
+							return nil, err
+						}
+						if ok {
+							parts = append(parts, dto.GeminiPart{
+								InlineData: &dto.GeminiInlineData{
+									MimeType: mimeType,
+									Data:     base64Data,
+								},
+							})
+							continue
+						}
+					}
+				}
+
 				source := part.ToFileSource()
 				if source == nil {
 					continue
