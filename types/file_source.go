@@ -125,6 +125,10 @@ func NewURLFileSource(url string) *URLSource {
 }
 
 func NewBase64FileSource(base64Data string, mimeType string) *Base64Source {
+	base64Data, detectedMimeType := normalizeBase64SourceData(base64Data)
+	if mimeType == "" {
+		mimeType = detectedMimeType
+	}
 	return &Base64Source{
 		Base64Data: base64Data,
 		MimeType:   mimeType,
@@ -136,6 +140,55 @@ func NewFileSourceFromData(data string, mimeType string) FileSource {
 		return NewURLFileSource(data)
 	}
 	return NewBase64FileSource(data, mimeType)
+}
+
+func normalizeBase64SourceData(data string) (string, string) {
+	cleanData := strings.TrimSpace(data)
+
+	for {
+		next := strings.TrimPrefix(cleanData, "base64:")
+		if next == cleanData {
+			break
+		}
+		cleanData = strings.TrimSpace(next)
+	}
+
+	mimeType := ""
+	if strings.HasPrefix(cleanData, "data:") {
+		if idx := strings.Index(cleanData, ","); idx != -1 {
+			header := cleanData[:idx]
+			cleanData = cleanData[idx+1:]
+
+			if mimeStart := strings.Index(header, ":"); mimeStart != -1 {
+				mimeEnd := strings.Index(header, ";")
+				if mimeEnd == -1 {
+					mimeEnd = len(header)
+				}
+				if mimeStart+1 < mimeEnd {
+					mimeType = header[mimeStart+1 : mimeEnd]
+				}
+			}
+		}
+	}
+
+	cleanData = strings.Map(func(r rune) rune {
+		if r == '\r' || r == '\n' || r == '\t' || r == ' ' {
+			return -1
+		}
+		if r == '-' {
+			return '+'
+		}
+		if r == '_' {
+			return '/'
+		}
+		return r
+	}, cleanData)
+
+	if remainder := len(cleanData) % 4; remainder == 2 || remainder == 3 {
+		cleanData += strings.Repeat("=", 4-remainder)
+	}
+
+	return cleanData, mimeType
 }
 
 // ---------------------------------------------------------------------------
