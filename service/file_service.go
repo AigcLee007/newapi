@@ -354,6 +354,22 @@ func normalizeBase64FileData(base64String string) (cleanBase64 string, mimeType 
 	return cleanBase64, mimeType
 }
 
+func decodeBase64FileData(cleanBase64 string) ([]byte, error) {
+	if decodedData, err := base64.StdEncoding.DecodeString(cleanBase64); err == nil {
+		return decodedData, nil
+	}
+	if decodedData, err := base64.RawStdEncoding.DecodeString(strings.TrimRight(cleanBase64, "=")); err == nil {
+		return decodedData, nil
+	}
+	if decodedData, err := base64.URLEncoding.DecodeString(cleanBase64); err == nil {
+		return decodedData, nil
+	}
+	if decodedData, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(cleanBase64, "=")); err == nil {
+		return decodedData, nil
+	}
+	return nil, fmt.Errorf("failed to decode base64 data")
+}
+
 // loadFromBase64 从 base64 字符串加载文件
 func loadFromBase64(base64String string, providedMimeType string) (*types.CachedFileData, error) {
 	var mimeType string
@@ -363,10 +379,11 @@ func loadFromBase64(base64String string, providedMimeType string) (*types.Cached
 		mimeType = providedMimeType
 	}
 
-	decodedData, err := base64.StdEncoding.DecodeString(cleanBase64)
+	decodedData, err := decodeBase64FileData(cleanBase64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base64 data: %w", err)
 	}
+	cleanBase64 = base64.StdEncoding.EncodeToString(decodedData)
 
 	base64Size := int64(len(cleanBase64))
 	var cachedData *types.CachedFileData

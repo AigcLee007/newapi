@@ -60,3 +60,16 @@ func TestLoadFromBase64AcceptsFileSourceIdentifierStyleDataURL(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, pngBase64, got)
 }
+
+func TestLoadFromBase64AcceptsURLSafeImageBase64(t *testing.T) {
+	const standardJPEGBase64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2w=="
+	const urlSafeJPEGBase64 = "_9j_4AAQSkZJRgABAQAAAQABAAD_2w=="
+
+	cached, err := loadFromBase64("base64:data:image/jpeg;base64,"+urlSafeJPEGBase64, "")
+	require.NoError(t, err)
+	require.Equal(t, "image/jpeg", cached.MimeType)
+
+	got, err := cached.GetBase64Data()
+	require.NoError(t, err)
+	require.Equal(t, standardJPEGBase64, got)
+}
