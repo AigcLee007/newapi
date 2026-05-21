@@ -315,17 +315,25 @@ func smartDetectMimeType(resp *http.Response, url string, fileBytes []byte) stri
 	return "application/octet-stream"
 }
 
-// loadFromBase64 从 base64 字符串加载文件
-func loadFromBase64(base64String string, providedMimeType string) (*types.CachedFileData, error) {
-	var mimeType string
-	var cleanBase64 string
+func normalizeBase64FileData(base64String string) (cleanBase64 string, mimeType string) {
+	cleanBase64 = strings.TrimSpace(base64String)
+
+	for {
+		trimmed := strings.TrimSpace(cleanBase64)
+		next := strings.TrimPrefix(trimmed, "base64:")
+		if next == trimmed {
+			cleanBase64 = trimmed
+			break
+		}
+		cleanBase64 = next
+	}
 
 	// 处理 data: 前缀
-	if strings.HasPrefix(base64String, "data:") {
-		idx := strings.Index(base64String, ",")
+	if strings.HasPrefix(cleanBase64, "data:") {
+		idx := strings.Index(cleanBase64, ",")
 		if idx != -1 {
-			header := base64String[:idx]
-			cleanBase64 = base64String[idx+1:]
+			header := cleanBase64[:idx]
+			cleanBase64 = cleanBase64[idx+1:]
 
 			if strings.Contains(header, ":") && strings.Contains(header, ";") {
 				mimeStart := strings.Index(header, ":") + 1
@@ -334,12 +342,22 @@ func loadFromBase64(base64String string, providedMimeType string) (*types.Cached
 					mimeType = header[mimeStart:mimeEnd]
 				}
 			}
-		} else {
-			cleanBase64 = base64String
 		}
-	} else {
-		cleanBase64 = base64String
 	}
+
+	cleanBase64 = strings.Map(func(r rune) rune {
+		if r == '\r' || r == '\n' || r == '\t' || r == ' ' {
+			return -1
+		}
+		return r
+	}, cleanBase64)
+	return cleanBase64, mimeType
+}
+
+// loadFromBase64 从 base64 字符串加载文件
+func loadFromBase64(base64String string, providedMimeType string) (*types.CachedFileData, error) {
+	var mimeType string
+	cleanBase64, mimeType := normalizeBase64FileData(base64String)
 
 	if providedMimeType != "" {
 		mimeType = providedMimeType
