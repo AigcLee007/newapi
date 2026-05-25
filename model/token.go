@@ -122,6 +122,17 @@ func sanitizeLikePattern(input string) (string, error) {
 	return input, nil
 }
 
+func tokenSearchLikePattern(input string) (string, error) {
+	pattern, err := sanitizeLikePattern(strings.TrimSpace(input))
+	if err != nil {
+		return "", err
+	}
+	if pattern == "" || strings.Contains(pattern, "%") {
+		return pattern, nil
+	}
+	return "%" + pattern + "%", nil
+}
+
 const searchHardLimit = 100
 
 func SearchUserTokens(userId int, keyword string, token string, offset int, limit int) (tokens []*Token, total int64, err error) {
@@ -133,9 +144,8 @@ func SearchUserTokens(userId int, keyword string, token string, offset int, limi
 		offset = 0
 	}
 
-	if token != "" {
-		token = strings.TrimPrefix(token, "sk-")
-	}
+	keyword = strings.TrimSpace(keyword)
+	token = strings.TrimPrefix(strings.TrimSpace(token), "sk-")
 
 	// 超量用户（令牌数超过上限）只允许精确搜索，禁止模糊搜索
 	maxTokens := operation_setting.GetMaxUserTokens()
@@ -155,14 +165,18 @@ func SearchUserTokens(userId int, keyword string, token string, offset int, limi
 
 	// 非空才加 LIKE 条件，空则跳过（不过滤该字段）
 	if keyword != "" {
-		keywordPattern, err := sanitizeLikePattern(keyword)
+		keywordPattern, err := tokenSearchLikePattern(keyword)
 		if err != nil {
 			return nil, 0, err
 		}
-		baseQuery = baseQuery.Where("name LIKE ? ESCAPE '!'", keywordPattern)
+		keyPattern, err := tokenSearchLikePattern(strings.TrimPrefix(keyword, "sk-"))
+		if err != nil {
+			return nil, 0, err
+		}
+		baseQuery = baseQuery.Where("(name LIKE ? ESCAPE '!' OR "+commonKeyCol+" LIKE ? ESCAPE '!')", keywordPattern, keyPattern)
 	}
 	if token != "" {
-		tokenPattern, err := sanitizeLikePattern(token)
+		tokenPattern, err := tokenSearchLikePattern(token)
 		if err != nil {
 			return nil, 0, err
 		}

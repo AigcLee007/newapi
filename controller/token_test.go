@@ -446,6 +446,37 @@ func TestSearchTokensMasksKeyInResponse(t *testing.T) {
 	}
 }
 
+func TestSearchTokensFindsKeyFragmentFromKeyword(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	token := seedToken(t, db, 1, "fragment-token", "abcd1234efgh5678")
+	seedToken(t, db, 1, "other-token", "zzzz1234yyyy5678")
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodGet, "/api/token/search?keyword=efgh&p=1&size=10", nil, 1)
+	SearchTokens(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	if !response.Success {
+		t.Fatalf("expected success response, got message: %s", response.Message)
+	}
+
+	var page tokenPageResponse
+	if err := common.Unmarshal(response.Data, &page); err != nil {
+		t.Fatalf("failed to decode search response: %v", err)
+	}
+	if len(page.Items) != 1 {
+		t.Fatalf("expected exactly one key fragment result, got %d", len(page.Items))
+	}
+	if page.Items[0].Name != token.Name {
+		t.Fatalf("expected token %q, got %q", token.Name, page.Items[0].Name)
+	}
+	if page.Items[0].Key != token.GetMaskedKey() {
+		t.Fatalf("expected masked search key %q, got %q", token.GetMaskedKey(), page.Items[0].Key)
+	}
+	if strings.Contains(recorder.Body.String(), token.Key) {
+		t.Fatalf("search response leaked raw token key: %s", recorder.Body.String())
+	}
+}
+
 func TestGetTokenMasksKeyInResponse(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
 	token := seedToken(t, db, 1, "detail-token", "qrst1234uvwx5678")
