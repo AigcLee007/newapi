@@ -16,10 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Code, Table, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
+import { syncMappingRowsFromJson } from '@/lib/mapping-rows'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -32,7 +33,7 @@ type ModelMappingEditorProps = {
 
 type MappingRow = {
   id: string
-  from: string
+  key: string
   to: string
 }
 
@@ -46,32 +47,18 @@ export function ModelMappingEditor({
   const [rows, setRows] = useState<MappingRow[]>([])
   const [jsonValue, setJsonValue] = useState(value)
 
-  const parseJsonToRows = (json: string) => {
-    try {
-      if (!json.trim()) {
-        setRows([])
-        return
-      }
-      const parsed = JSON.parse(json)
-      const newRows: MappingRow[] = Object.entries(parsed).map(
-        ([from, to], index) => ({
-          id: `${Date.now()}-${index}`,
-          from,
-          to: String(to),
-        })
-      )
-      setRows(newRows)
-    } catch (_error) {
-      // Invalid JSON, keep current rows
-    }
-  }
+  const syncRowsFromJson = useCallback((json: string) => {
+    setRows((previousRows) =>
+      syncMappingRowsFromJson(json, previousRows, 'model-mapping', 'to')
+    )
+  }, [])
 
   // Parse JSON to rows when value changes externally
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setJsonValue(value)
-    parseJsonToRows(value)
-  }, [value])
+    syncRowsFromJson(value)
+  }, [value, syncRowsFromJson])
 
   const convertRowsToJson = (updatedRows: MappingRow[]): string => {
     if (updatedRows.length === 0) {
@@ -79,8 +66,8 @@ export function ModelMappingEditor({
     }
     const obj: Record<string, string> = {}
     updatedRows.forEach((row) => {
-      if (row.from.trim()) {
-        obj[row.from.trim()] = row.to.trim()
+      if (row.key.trim()) {
+        obj[row.key.trim()] = row.to.trim()
       }
     })
     return JSON.stringify(obj, null, 2)
@@ -88,8 +75,8 @@ export function ModelMappingEditor({
 
   const handleAddRow = () => {
     const newRow: MappingRow = {
-      id: `${Date.now()}`,
-      from: '',
+      id: `model-mapping-new-${Date.now()}`,
+      key: '',
       to: '',
     }
     const updatedRows = [...rows, newRow]
@@ -106,7 +93,7 @@ export function ModelMappingEditor({
 
   const handleRowChange = (
     id: string,
-    field: 'from' | 'to',
+    field: 'key' | 'to',
     newValue: string
   ) => {
     const updatedRows = rows.map((row) =>
@@ -121,7 +108,7 @@ export function ModelMappingEditor({
   const handleJsonChange = (newJson: string) => {
     setJsonValue(newJson)
     onChange(newJson)
-    parseJsonToRows(newJson)
+    syncRowsFromJson(newJson)
   }
 
   const handleFillTemplate = () => {
@@ -132,7 +119,7 @@ export function ModelMappingEditor({
     )
     setJsonValue(template)
     onChange(template)
-    parseJsonToRows(template)
+    syncRowsFromJson(template)
   }
 
   const toggleMode = () => {
@@ -144,7 +131,7 @@ export function ModelMappingEditor({
       setMode('json')
     } else {
       // Switching to visual mode: sync JSON to rows
-      parseJsonToRows(jsonValue)
+      syncRowsFromJson(jsonValue)
       setMode('visual')
     }
   }
@@ -200,9 +187,9 @@ export function ModelMappingEditor({
                   className='grid grid-cols-[1fr_1fr_auto] gap-2'
                 >
                   <Input
-                    value={row.from}
+                    value={row.key}
                     onChange={(e) =>
-                      handleRowChange(row.id, 'from', e.target.value)
+                      handleRowChange(row.id, 'key', e.target.value)
                     }
                     placeholder='gpt-3.5-turbo'
                     disabled={disabled}

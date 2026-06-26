@@ -16,9 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Code, Table, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { syncMappingRowsFromJson } from '@/lib/mapping-rows'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,34 +67,18 @@ export function JsonEditor({
   const [rows, setRows] = useState<EditorRow[]>([])
   const [jsonValue, setJsonValue] = useState(value)
 
-  const parseJsonToRows = (json: string) => {
-    try {
-      if (!json.trim()) {
-        setRows([])
-        return
-      }
-      const parsed = JSON.parse(json)
-      const newRows: EditorRow[] = Object.entries(parsed).map(
-        ([key, val], index) => ({
-          id: `${Date.now()}-${index}`,
-          key,
-          value: typeof val === 'object' ? JSON.stringify(val) : String(val),
-        })
-      )
-      setRows(newRows)
-    } catch (_error) {
-      // Invalid JSON, keep current rows
-    }
-  }
+  const syncRowsFromJson = useCallback((json: string) => {
+    setRows((previousRows) =>
+      syncMappingRowsFromJson(json, previousRows, 'json-editor')
+    )
+  }, [])
 
   // Parse JSON to rows when value changes externally
   useEffect(() => {
-    if (value !== jsonValue) {
-      setJsonValue(value)
-      parseJsonToRows(value)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setJsonValue(value)
+    syncRowsFromJson(value)
+  }, [value, syncRowsFromJson])
 
   const convertRowsToJson = (updatedRows: EditorRow[]): string => {
     if (updatedRows.length === 0) {
@@ -125,7 +110,7 @@ export function JsonEditor({
 
   const handleAddRow = () => {
     const newRow: EditorRow = {
-      id: `${Date.now()}`,
+      id: `json-editor-new-${Date.now()}`,
       key: '',
       value: '',
     }
@@ -158,7 +143,7 @@ export function JsonEditor({
   const handleJsonChange = (newJson: string) => {
     setJsonValue(newJson)
     onChange(newJson)
-    parseJsonToRows(newJson)
+    syncRowsFromJson(newJson)
   }
 
   const handleFillTemplate = () => {
@@ -166,7 +151,7 @@ export function JsonEditor({
     const templateJson = JSON.stringify(template, null, 2)
     setJsonValue(templateJson)
     onChange(templateJson)
-    parseJsonToRows(templateJson)
+    syncRowsFromJson(templateJson)
   }
 
   const toggleMode = () => {
@@ -178,7 +163,7 @@ export function JsonEditor({
       setMode('json')
     } else {
       // Switching to visual mode: sync JSON to rows
-      parseJsonToRows(jsonValue)
+      syncRowsFromJson(jsonValue)
       setMode('visual')
     }
   }
