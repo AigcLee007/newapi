@@ -13,15 +13,16 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
+	pluginruntime "github.com/QuantumNous/new-api/pkg/jsplugin"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
+	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
-	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -68,16 +69,25 @@ func RelayImageAsyncSubmit(c *gin.Context) {
 			return
 		}
 	}
-	tokens, err := service.EstimateRequestToken(c, meta, relayInfo)
-	if err != nil {
-		imageAsyncError(c, http.StatusInternalServerError, err.Error(), nil)
-		return
+	pluginKey := ""
+	if pinnedValue, exists := c.Get(pluginruntime.ContextKeyPinnedEndpoint); exists {
+		if pinned, ok := pinnedValue.(pluginruntime.PinnedEndpoint); ok && pinned.Plugin != nil && pinned.Protocol == pluginruntime.ProtocolOpenAIImage {
+			pluginKey = pinned.Plugin.Meta.Key
+		}
 	}
-	relayInfo.SetEstimatePromptTokens(tokens)
-	priceData, err := helper.ModelPriceHelper(c, relayInfo, tokens, meta)
-	if err != nil {
-		imageAsyncError(c, http.StatusBadRequest, err.Error(), nil)
-		return
+	// Plugin tasks use task-usage pricing and own their reservation. The local
+	// image task only stores the request and presents its eventual result.
+	if pluginKey == "" {
+		tokens, estimateErr := service.EstimateRequestToken(c, meta, relayInfo)
+		if estimateErr != nil {
+			imageAsyncError(c, http.StatusInternalServerError, estimateErr.Error(), nil)
+			return
+		}
+		relayInfo.SetEstimatePromptTokens(tokens)
+		if _, priceErr := helper.ModelPriceHelper(c, relayInfo, tokens, meta); priceErr != nil {
+			imageAsyncError(c, http.StatusBadRequest, priceErr.Error(), nil)
+			return
+		}
 	}
 
 	bodyStorage, err := common.GetBodyStorage(c)
@@ -114,14 +124,15 @@ func RelayImageAsyncSubmit(c *gin.Context) {
 		}
 	}
 
-	if !priceData.FreeModel {
-		if apiErr := service.PreConsumeBilling(c, priceData.QuotaToPreConsume, relayInfo); apiErr != nil {
+	taskID := model.GenerateTaskID()
+	relayInfo.RequestId = fmt.Sprintf("image_async:%s", taskID)
+	if pluginKey == "" && !relayInfo.PriceData.FreeModel {
+		if apiErr := service.PreConsumeBilling(c, relayInfo.PriceData.QuotaToPreConsume, relayInfo); apiErr != nil {
 			imageAsyncError(c, apiErr.StatusCode, apiErr.Error(), nil)
 			return
 		}
 	}
 
-	taskID := model.GenerateTaskID()
 	bodyPath, savedSHA, bodySize, err := service.SaveImageAsyncRequestBody(taskID, rawBody)
 	if err != nil {
 		if relayInfo.Billing != nil {
@@ -139,7 +150,7 @@ func RelayImageAsyncSubmit(c *gin.Context) {
 			ModelPrice:      relayInfo.PriceData.ModelPrice,
 			GroupRatio:      relayInfo.PriceData.GroupRatioInfo.GroupRatio,
 			ModelRatio:      relayInfo.PriceData.ModelRatio,
-			OtherRatios:     relayInfo.PriceData.OtherRatios,
+			OtherRatios:     relayInfo.PriceData.OtherRatios(),
 			OriginModelName: originModelName,
 			PerCallBilling:  relayInfo.PriceData.UsePrice,
 		},
@@ -161,6 +172,18 @@ func RelayImageAsyncSubmit(c *gin.Context) {
 		WebhookURL:     c.Query("webhook"),
 		IdempotencyKey: idempotencyKey,
 		RequestHash:    requestHash,
+		PluginKey:      pluginKey,
+	}
+	if pluginKey != "" {
+		privateData.ImageAsync.PluginTaskID = model.GenerateTaskID()
+		privateData.ImageAsync.BillingFinalized = true // billing belongs to the child
+	} else if err := captureImageAsyncBillingSnapshot(relayInfo, privateData.ImageAsync); err != nil {
+		if relayInfo.Billing != nil {
+			relayInfo.Billing.Refund(c)
+		}
+		_ = service.DeleteImageAsyncRequestBody(bodyPath)
+		imageAsyncError(c, http.StatusInternalServerError, err.Error(), nil)
+		return
 	}
 	task := &model.Task{
 		TaskID:     taskID,
@@ -172,7 +195,7 @@ func RelayImageAsyncSubmit(c *gin.Context) {
 		ChannelId:  common.GetContextKeyInt(c, constant.ContextKeyChannelId),
 		Platform:   constant.TaskPlatformSyncTask,
 		Action:     constant.ImageAsyncAction,
-		Quota:      priceData.QuotaToPreConsume,
+		Quota:      relayInfo.FinalPreConsumedQuota,
 		Data:       json.RawMessage("null"),
 		Properties: model.Properties{
 			OriginModelName: originModelName,
@@ -204,6 +227,24 @@ func RelayImageAsyncSubmit(c *gin.Context) {
 	}
 
 	imageAsyncSuccess(c, taskID)
+}
+
+func captureImageAsyncBillingSnapshot(info *relaycommon.RelayInfo, snapshot *model.ImageAsyncPrivateData) error {
+	price, err := common.Marshal(info.PriceData)
+	if err != nil {
+		return fmt.Errorf("capture image pricing: %w", err)
+	}
+	snapshot.PriceDataJSON = price
+	snapshot.ImageQuotaBeforeGroup = info.ImageQuotaBeforeGroup
+	snapshot.TieredSnapshot = info.TieredBillingSnapshot
+	if info.BillingRequestInput != nil {
+		input, err := common.Marshal(info.BillingRequestInput)
+		if err != nil {
+			return fmt.Errorf("capture image billing request: %w", err)
+		}
+		snapshot.BillingRequestInputJSON = input
+	}
+	return nil
 }
 
 func RelayImageAsyncFetch(c *gin.Context) {

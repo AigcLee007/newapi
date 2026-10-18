@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/types"
+	"github.com/QuantumNous/new-api/relaykit/types"
 
 	"github.com/gin-gonic/gin"
 )
@@ -164,7 +164,7 @@ func visionaryImageHandler(c *gin.Context, resp *http.Response, info *relaycommo
 
 	imageCount := len(openAIResponse.Data)
 	if imageCount > 0 {
-		info.PriceData.AddOtherRatio("n", float64(imageCount))
+		info.UpdateImageCount(int64(imageCount))
 	}
 	return &dto.Usage{}, nil
 }

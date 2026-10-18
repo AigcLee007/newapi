@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/types"
+	"github.com/QuantumNous/new-api/relaykit/types"
 
 	"github.com/gin-gonic/gin"
 )
@@ -327,7 +327,7 @@ func GeminiNativeImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp 
 		usage.TotalTokens = imageTokens * generatedImages
 	}
 	if len(openAIResponse.Data) > 0 {
-		info.PriceData.AddOtherRatio("n", float64(len(openAIResponse.Data)))
+		info.UpdateImageCount(int64(len(openAIResponse.Data)))
 	}
 	return usage, nil
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,14 +17,14 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relay"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
+	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/types"
 	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 )
@@ -158,6 +159,9 @@ func processImageAsyncTask(ctx context.Context, task *model.Task) {
 
 	result, relayErr := runImageAsyncRelayWithRetry(task, body)
 	if relayErr != nil {
+		if errors.Is(relayErr, errImageAsyncPluginSubmissionPending) {
+			return // resume the saved child on the next recovery pass
+		}
 		markImageAsyncFailure(ctx, task, model.TaskStatusInProgress, sanitizeImageAsyncError(relayErr))
 		return
 	}
@@ -196,10 +200,13 @@ type imageAsyncRelayResult struct {
 	ChannelID  int
 	Context    *gin.Context
 	RelayInfo  *relaycommon.RelayInfo
-	LogContent []string
+	LogContent []*common.Message
 }
 
 func runImageAsyncRelayWithRetry(task *model.Task, body []byte) (*imageAsyncRelayResult, error) {
+	if task.PrivateData.ImageAsync.PluginKey != "" {
+		return runImageAsyncPluginRelay(task, body)
+	}
 	var lastErr error
 	var lastChannelID int
 	for retry := 0; retry <= common.RetryTimes; retry++ {
@@ -225,7 +232,31 @@ func runImageAsyncRelayWithRetry(task *model.Task, body []byte) (*imageAsyncRela
 		if relayInfo.OriginModelName == "" {
 			relayInfo.OriginModelName = task.Properties.OriginModelName
 		}
-		applyImageAsyncBillingSnapshot(task, relayInfo)
+		if err := applyImageAsyncBillingSnapshot(task, relayInfo); err != nil {
+			common.CleanupBodyStorage(c)
+			return nil, err
+		}
+		if err := service.RestoreImageAsyncBillingSession(task, relayInfo); err != nil {
+			common.CleanupBodyStorage(c)
+			return nil, err
+		}
+		relayInfo.ImageReservationCheckpoint = func() error {
+			if err := captureImageAsyncBillingSnapshot(relayInfo, task.PrivateData.ImageAsync); err != nil {
+				return err
+			}
+			if bc := task.PrivateData.BillingContext; bc != nil {
+				bc.OtherRatios = relayInfo.PriceData.OtherRatios()
+				bc.TieredSnapshot = relayInfo.TieredBillingSnapshot
+			}
+			reserved, err := model.ReserveImageAsyncReservation(task, relayInfo.PriceData.QuotaToPreConsume)
+			if err != nil {
+				return err
+			}
+			if !reserved {
+				return errors.New("image async task ownership changed before reservation")
+			}
+			return service.RestoreImageAsyncBillingSession(task, relayInfo)
+		}
 		relayInfo.ChannelMeta = &relaycommon.ChannelMeta{}
 		retryParam := &service.RetryParam{
 			Ctx:        c,
@@ -240,7 +271,7 @@ func runImageAsyncRelayWithRetry(task *model.Task, body []byte) (*imageAsyncRela
 			break
 		}
 		lastChannelID = channel.Id
-		addUsedChannel(c, channel.Id)
+		service.AppendUsedChannel(c, channel.Id)
 		usage, logContent, apiErr := relay.RunImageRelay(c, relayInfo)
 		if apiErr == nil && recorder.Code < http.StatusBadRequest && recorder.Body.Len() > 0 {
 			return &imageAsyncRelayResult{
@@ -256,8 +287,8 @@ func runImageAsyncRelayWithRetry(task *model.Task, body []byte) (*imageAsyncRela
 			apiErr = types.NewErrorWithStatusCode(fmt.Errorf("image async upstream returned status %d", recorder.Code), types.ErrorCodeBadResponseStatusCode, recorder.Code, types.ErrOptionWithSkipRetry())
 		}
 		lastErr = apiErr
-		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), apiErr)
-		if !shouldRetry(c, apiErr, common.RetryTimes-retry) {
+		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), apiErr, relayInfo)
+		if service.DecideRelayRetry(c, apiErr, common.RetryTimes-retry).Action != "retry" {
 			common.CleanupBodyStorage(c)
 			break
 		}
@@ -268,6 +299,14 @@ func runImageAsyncRelayWithRetry(task *model.Task, body []byte) (*imageAsyncRela
 }
 
 func newImageAsyncReplayContext(task *model.Task, body []byte) (*gin.Context, *httptest.ResponseRecorder, error) {
+	user, err := model.GetUserById(task.UserId, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("restore image async user: %w", err)
+	}
+	token, err := model.GetTokenByIds(task.PrivateData.TokenId, task.UserId)
+	if err != nil {
+		return nil, nil, fmt.Errorf("restore image async token: %w", err)
+	}
 	imageAsync := task.PrivateData.ImageAsync
 	target := imageAsync.RequestPath
 	if target == "" {
@@ -297,11 +336,16 @@ func newImageAsyncReplayContext(task *model.Task, body []byte) (*gin.Context, *h
 		return nil, nil, err
 	}
 	c.Set(common.KeyBodyStorage, storage)
+	user.ToBaseUser().WriteContext(c)
 	common.SetContextKey(c, constant.ContextKeyUserId, task.UserId)
 	common.SetContextKey(c, constant.ContextKeyUsingGroup, task.Group)
 	common.SetContextKey(c, constant.ContextKeyUserGroup, task.GetImageAsyncUserGroup())
-	common.SetContextKey(c, constant.ContextKeyTokenGroup, task.Group)
+	common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
 	common.SetContextKey(c, constant.ContextKeyTokenId, task.PrivateData.TokenId)
+	common.SetContextKey(c, constant.ContextKeyTokenKey, token.Key)
+	common.SetContextKey(c, constant.ContextKeyTokenUnlimited, token.UnlimitedQuota)
+	c.Set("token_name", token.Name)
+	c.Set("token_quota", token.RemainQuota)
 	common.SetContextKey(c, constant.ContextKeyOriginalModel, task.Properties.OriginModelName)
 	common.SetContextKey(c, constant.ContextKeyRequestStartTime, time.Now())
 	c.Set("original_model", task.Properties.OriginModelName)
@@ -311,13 +355,33 @@ func newImageAsyncReplayContext(task *model.Task, body []byte) (*gin.Context, *h
 	return c, recorder, nil
 }
 
-func applyImageAsyncBillingSnapshot(task *model.Task, info *relaycommon.RelayInfo) {
+func applyImageAsyncBillingSnapshot(task *model.Task, info *relaycommon.RelayInfo) error {
+	imageAsync := task.PrivateData.ImageAsync
+	if imageAsync != nil {
+		if len(imageAsync.PriceDataJSON) > 0 {
+			if err := common.Unmarshal(imageAsync.PriceDataJSON, &info.PriceData); err != nil {
+				return fmt.Errorf("restore image pricing: %w", err)
+			}
+		}
+		info.ImageQuotaBeforeGroup = imageAsync.ImageQuotaBeforeGroup
+		info.TieredBillingSnapshot = imageAsync.TieredSnapshot
+		if len(imageAsync.BillingRequestInputJSON) > 0 {
+			if err := common.Unmarshal(imageAsync.BillingRequestInputJSON, &info.BillingRequestInput); err != nil {
+				return fmt.Errorf("restore image billing request: %w", err)
+			}
+		}
+	}
 	if bc := task.PrivateData.BillingContext; bc != nil {
-		info.PriceData.ModelPrice = bc.ModelPrice
-		info.PriceData.GroupRatioInfo.GroupRatio = bc.GroupRatio
-		info.PriceData.ModelRatio = bc.ModelRatio
-		info.PriceData.OtherRatios = bc.OtherRatios
-		info.PriceData.UsePrice = bc.PerCallBilling
+		if imageAsync == nil || len(imageAsync.PriceDataJSON) == 0 {
+			info.PriceData.ModelPrice = bc.ModelPrice
+			info.PriceData.GroupRatioInfo.GroupRatio = bc.GroupRatio
+			info.PriceData.ModelRatio = bc.ModelRatio
+			info.PriceData.UsePrice = bc.PerCallBilling
+		}
+		info.PriceData.ReplaceOtherRatios(bc.OtherRatios)
+		if info.TieredBillingSnapshot == nil {
+			info.TieredBillingSnapshot = bc.TieredSnapshot
+		}
 	}
 	info.BillingSource = task.PrivateData.BillingSource
 	info.SubscriptionId = task.PrivateData.SubscriptionId
@@ -326,17 +390,11 @@ func applyImageAsyncBillingSnapshot(task *model.Task, info *relaycommon.RelayInf
 	info.UsingGroup = task.Group
 	info.UserGroup = task.GetImageAsyncUserGroup()
 	info.TokenGroup = task.Group
+	return nil
 }
 
 func markImageAsyncFailure(ctx context.Context, task *model.Task, from model.TaskStatus, reason string) {
-	task.Status = model.TaskStatusFailure
-	task.Progress = "100%"
-	task.FinishTime = time.Now().Unix()
-	task.FailReason = reason
-	if task.PrivateData.ImageAsync != nil {
-		task.PrivateData.ImageAsync.LastError = reason
-	}
-	won, err := task.UpdateWithStatus(from)
+	won, err := task.FailImageAsyncTask(from, time.Now().Unix(), reason)
 	if err != nil || !won {
 		if err != nil {
 			logger.LogWarn(ctx, fmt.Sprintf("mark image async task %s failed: %s", task.TaskID, err.Error()))
@@ -350,9 +408,24 @@ func markImageAsyncFailure(ctx context.Context, task *model.Task, from model.Tas
 func recoverImageAsyncTasks(ctx context.Context) {
 	now := time.Now().Unix()
 	for _, task := range model.GetTimedOutImageAsyncTasks(now-imageAsyncTaskTimeoutSeconds(), imageAsyncWorkerBatchSize()) {
+		if task.PrivateData.ImageAsync != nil && task.PrivateData.ImageAsync.PluginKey != "" {
+			won, err := task.ExpireImageAsyncPluginTaskWithoutChild(now-imageAsyncTaskTimeoutSeconds(), now, "image async plugin submission timed out before a child task was saved")
+			if err != nil {
+				logger.LogWarn(ctx, fmt.Sprintf("expire image async plugin task %s failed: %s", task.TaskID, err.Error()))
+			} else if won {
+				_ = sendImageAsyncWebhookForTask(ctx, task)
+			}
+			continue // the plugin child remains the sole billing owner
+		}
 		markImageAsyncFailure(ctx, task, task.Status, "image async task timeout")
 	}
 	for _, task := range model.GetRecoverableImageAsyncTasks(now-imageAsyncStaleSeconds(), imageAsyncWorkerBatchSize()) {
+		if task.PrivateData.ImageAsync != nil && task.PrivateData.ImageAsync.PluginKey != "" {
+			// Requeue by CAS. The saved child ID and submission barrier prevent
+			// a worker restart from submitting or reserving the child again.
+			_, _ = task.RequeueImageAsyncPluginTask()
+			continue
+		}
 		markImageAsyncFailure(ctx, task, model.TaskStatusInProgress, "image async task stale; failed to avoid duplicate upstream execution")
 	}
 }
@@ -368,7 +441,7 @@ func compensateImageAsyncBilling(ctx context.Context) {
 }
 
 func sendPendingImageAsyncWebhooks(ctx context.Context) {
-	for _, task := range model.GetImageAsyncTasksNeedWebhook(time.Now().Unix(), imageAsyncWorkerBatchSize()) {
+	for _, task := range model.GetImageAsyncTasksNeedWebhook(time.Now().Unix(), imageAsyncWorkerBatchSize(), imageAsyncWebhookRetryLimit()) {
 		_ = sendImageAsyncWebhookForTask(ctx, task)
 	}
 }
