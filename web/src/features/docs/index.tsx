@@ -42,7 +42,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
+
+import { ModelApiDocs } from './model-api-docs'
 
 const navLinks = [
   { title: 'Home', href: '/' },
@@ -775,7 +778,7 @@ function downloadMarkdown(content: DocsContent, baseUrl: string) {
 }
 
 export function Docs() {
-  const { i18n } = useTranslation()
+  const { i18n, t } = useTranslation()
   const baseUrl = useMemo(() => getOrigin(), [])
   const isChinese =
     i18n.resolvedLanguage?.toLowerCase().startsWith('zh') ||
@@ -788,197 +791,213 @@ export function Docs() {
 
   return (
     <PublicLayout navLinks={navLinks}>
-      <div className='mx-auto w-full max-w-6xl space-y-8 pb-14'>
-        <section className='grid gap-8 pt-8 lg:grid-cols-[1fr_20rem] lg:items-end'>
-          <div className='space-y-5'>
-            <Badge variant='outline' className='rounded-md'>
-              {content.hero.badge}
-            </Badge>
-            <div className='space-y-4'>
-              <h1 className='max-w-3xl text-4xl leading-[1.04] font-semibold tracking-normal text-balance md:text-6xl'>
-                {content.hero.title}
-              </h1>
-              <p className='text-muted-foreground max-w-2xl text-base leading-7 md:text-lg'>
-                {content.hero.description}
-              </p>
-            </div>
-            <div className='flex flex-wrap gap-3'>
-              <Button render={<a href='#image-examples' />}>
-                <ImageIcon className='size-4' />
-                {content.hero.imageExamples}
-              </Button>
-              <Button
-                type='button'
-                variant='outline'
-                onClick={() => downloadMarkdown(content, baseUrl)}
-              >
-                <FileDown className='size-4' />
-                {content.hero.exportMarkdown}
-              </Button>
-            </div>
-          </div>
-
-          <Card className='rounded-lg'>
-            <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <Route className='size-4' />
-                {content.base.title}
-              </CardTitle>
-              <CardDescription>{content.base.description}</CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-3'>
-              <CodeInline value={baseUrl} />
-              <div className='text-muted-foreground flex items-center gap-2 text-sm'>
-                <KeyRound className='size-4' />
-                {content.base.authorization}
+      <Tabs
+        defaultValue='images'
+        className='mx-auto w-full max-w-6xl space-y-8 px-4 pb-14 sm:px-6'
+      >
+        <TabsList
+          aria-label={t('API documentation sections')}
+          className='w-full sm:w-fit'
+        >
+          <TabsTrigger value='images'>{t('Image API')}</TabsTrigger>
+          <TabsTrigger value='models'>{t('Language Model API')}</TabsTrigger>
+        </TabsList>
+        <TabsContent value='images'>
+          <div className='space-y-8'>
+            <section className='grid gap-8 pt-8 lg:grid-cols-[1fr_20rem] lg:items-end'>
+              <div className='space-y-5'>
+                <Badge variant='outline' className='rounded-md'>
+                  {content.hero.badge}
+                </Badge>
+                <div className='space-y-4'>
+                  <h1 className='max-w-3xl text-4xl leading-[1.04] font-semibold tracking-normal text-balance md:text-6xl'>
+                    {content.hero.title}
+                  </h1>
+                  <p className='text-muted-foreground max-w-2xl text-base leading-7 md:text-lg'>
+                    {content.hero.description}
+                  </p>
+                </div>
+                <div className='flex flex-wrap gap-3'>
+                  <Button render={<a href='#image-examples' />}>
+                    <ImageIcon className='size-4' />
+                    {content.hero.imageExamples}
+                  </Button>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    onClick={() => downloadMarkdown(content, baseUrl)}
+                  >
+                    <FileDown className='size-4' />
+                    {content.hero.exportMarkdown}
+                  </Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </section>
 
-        <section className='grid gap-4 md:grid-cols-3'>
-          {content.endpointGroups.map((group) => (
-            <Card key={group.title} className='rounded-lg'>
-              <CardHeader>
-                <CardTitle>{group.title}</CardTitle>
-                <CardDescription>{group.description}</CardDescription>
-              </CardHeader>
-              <CardContent className='space-y-4'>
-                <div className='flex flex-wrap gap-2'>
-                  {group.models.map((model) => (
-                    <Badge key={model} variant='secondary'>
-                      {model}
-                    </Badge>
-                  ))}
-                </div>
-                <div className='space-y-2'>
-                  {group.endpoints.map((endpoint) => (
-                    <CodeInline key={endpoint} value={endpoint} />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </section>
+              <Card className='rounded-lg'>
+                <CardHeader>
+                  <CardTitle className='flex items-center gap-2'>
+                    <Route className='size-4' />
+                    {content.base.title}
+                  </CardTitle>
+                  <CardDescription>{content.base.description}</CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  <CodeInline value={baseUrl} />
+                  <div className='text-muted-foreground flex items-center gap-2 text-sm'>
+                    <KeyRound className='size-4' />
+                    {content.base.authorization}
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
 
-        <section className='space-y-4'>
-          <SectionHeading
-            icon={Workflow}
-            title={content.syncAsync.title}
-            description={content.syncAsync.description}
-          />
-          <div className='grid gap-4 md:grid-cols-2'>
-            <Card className='rounded-lg'>
-              <CardHeader>
-                <CardTitle className='flex items-center gap-2'>
-                  <Sparkles className='size-4' />
-                  {content.syncAsync.syncTitle}
-                </CardTitle>
-                <CardDescription>
-                  {content.syncAsync.syncDescription}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className='space-y-3 text-sm'>
-                {content.syncAsync.syncPoints.map((point) => (
-                  <Point key={point}>{point}</Point>
-                ))}
-              </CardContent>
-            </Card>
+            <section className='grid gap-4 md:grid-cols-3'>
+              {content.endpointGroups.map((group) => (
+                <Card key={group.title} className='rounded-lg'>
+                  <CardHeader>
+                    <CardTitle>{group.title}</CardTitle>
+                    <CardDescription>{group.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-4'>
+                    <div className='flex flex-wrap gap-2'>
+                      {group.models.map((model) => (
+                        <Badge key={model} variant='secondary'>
+                          {model}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className='space-y-2'>
+                      {group.endpoints.map((endpoint) => (
+                        <CodeInline key={endpoint} value={endpoint} />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </section>
 
-            <Card className='rounded-lg'>
-              <CardHeader>
-                <CardTitle className='flex items-center gap-2'>
-                  <Timer className='size-4' />
-                  {content.syncAsync.asyncTitle}
-                </CardTitle>
-                <CardDescription>
-                  {content.syncAsync.asyncDescription}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className='space-y-3 text-sm'>
-                {content.syncAsync.asyncPoints.map((point) => (
-                  <Point key={point}>{point}</Point>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        <section className='space-y-4'>
-          <SectionHeading
-            icon={BookOpen}
-            title={content.parameters.title}
-            description={content.parameters.description}
-          />
-          <Card className='rounded-lg'>
-            <CardContent className='overflow-x-auto p-0'>
-              <table className='w-full min-w-[48rem] text-sm'>
-                <thead>
-                  <tr className='border-b text-left'>
-                    <th className='px-4 py-3 font-medium'>
-                      {content.parameters.fieldHeader}
-                    </th>
-                    <th className='px-4 py-3 font-medium'>
-                      {content.parameters.useHeader}
-                    </th>
-                    <th className='px-4 py-3 font-medium'>
-                      {content.parameters.notesHeader}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {content.parameterRows.map(([field, use, notes]) => (
-                    <tr key={field} className='border-b last:border-0'>
-                      <td className='px-4 py-3 font-mono text-xs'>{field}</td>
-                      <td className='px-4 py-3'>{use}</td>
-                      <td className='text-muted-foreground px-4 py-3'>
-                        {notes}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section id='image-examples' className='scroll-mt-24 space-y-4'>
-          <SectionHeading
-            icon={ImageIcon}
-            title={content.examplesTitle}
-            description={content.examplesDescription}
-          />
-          <div className='grid gap-4'>
-            {content.examples.map((example) => (
-              <ExampleCard
-                key={example.id}
-                example={example}
-                copyLabel={content.copyLabel}
-                copiedLabel={content.copiedLabel}
+            <section className='space-y-4'>
+              <SectionHeading
+                icon={Workflow}
+                title={content.syncAsync.title}
+                description={content.syncAsync.description}
               />
-            ))}
-          </div>
-        </section>
+              <div className='grid gap-4 md:grid-cols-2'>
+                <Card className='rounded-lg'>
+                  <CardHeader>
+                    <CardTitle className='flex items-center gap-2'>
+                      <Sparkles className='size-4' />
+                      {content.syncAsync.syncTitle}
+                    </CardTitle>
+                    <CardDescription>
+                      {content.syncAsync.syncDescription}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-3 text-sm'>
+                    {content.syncAsync.syncPoints.map((point) => (
+                      <Point key={point}>{point}</Point>
+                    ))}
+                  </CardContent>
+                </Card>
 
-        <section className='space-y-4'>
-          <SectionHeading
-            icon={CheckCircle2}
-            title={content.troubleshooting.title}
-            description={content.troubleshooting.description}
-          />
-          <div className='grid gap-4 md:grid-cols-2'>
-            <Card className='rounded-lg'>
-              <CardHeader>
-                <CardTitle>{content.troubleshooting.responseTitle}</CardTitle>
-                <CardDescription>
-                  {content.troubleshooting.responseDescription}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CodeBlock
-                  copyLabel={content.copyLabel}
-                  copiedLabel={content.copiedLabel}
-                  code={`{
+                <Card className='rounded-lg'>
+                  <CardHeader>
+                    <CardTitle className='flex items-center gap-2'>
+                      <Timer className='size-4' />
+                      {content.syncAsync.asyncTitle}
+                    </CardTitle>
+                    <CardDescription>
+                      {content.syncAsync.asyncDescription}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-3 text-sm'>
+                    {content.syncAsync.asyncPoints.map((point) => (
+                      <Point key={point}>{point}</Point>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </section>
+
+            <section className='space-y-4'>
+              <SectionHeading
+                icon={BookOpen}
+                title={content.parameters.title}
+                description={content.parameters.description}
+              />
+              <Card className='rounded-lg'>
+                <CardContent className='overflow-x-auto p-0'>
+                  <table className='w-full min-w-[48rem] text-sm'>
+                    <thead>
+                      <tr className='border-b text-left'>
+                        <th className='px-4 py-3 font-medium'>
+                          {content.parameters.fieldHeader}
+                        </th>
+                        <th className='px-4 py-3 font-medium'>
+                          {content.parameters.useHeader}
+                        </th>
+                        <th className='px-4 py-3 font-medium'>
+                          {content.parameters.notesHeader}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {content.parameterRows.map(([field, use, notes]) => (
+                        <tr key={field} className='border-b last:border-0'>
+                          <td className='px-4 py-3 font-mono text-xs'>
+                            {field}
+                          </td>
+                          <td className='px-4 py-3'>{use}</td>
+                          <td className='text-muted-foreground px-4 py-3'>
+                            {notes}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section id='image-examples' className='scroll-mt-24 space-y-4'>
+              <SectionHeading
+                icon={ImageIcon}
+                title={content.examplesTitle}
+                description={content.examplesDescription}
+              />
+              <div className='grid gap-4'>
+                {content.examples.map((example) => (
+                  <ExampleCard
+                    key={example.id}
+                    example={example}
+                    copyLabel={content.copyLabel}
+                    copiedLabel={content.copiedLabel}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section className='space-y-4'>
+              <SectionHeading
+                icon={CheckCircle2}
+                title={content.troubleshooting.title}
+                description={content.troubleshooting.description}
+              />
+              <div className='grid gap-4 md:grid-cols-2'>
+                <Card className='rounded-lg'>
+                  <CardHeader>
+                    <CardTitle>
+                      {content.troubleshooting.responseTitle}
+                    </CardTitle>
+                    <CardDescription>
+                      {content.troubleshooting.responseDescription}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <CodeBlock
+                      copyLabel={content.copyLabel}
+                      copiedLabel={content.copiedLabel}
+                      code={`{
   "status": "SUCCESS",
   "progress": "100%",
   "model": "gpt-image-2",
@@ -988,26 +1007,33 @@ export function Docs() {
     }
   ]
 }`}
-                />
-              </CardContent>
-            </Card>
+                    />
+                  </CardContent>
+                </Card>
 
-            <Card className='rounded-lg'>
-              <CardHeader>
-                <CardTitle>{content.troubleshooting.mistakesTitle}</CardTitle>
-                <CardDescription>
-                  {content.troubleshooting.mistakesDescription}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className='space-y-3 text-sm'>
-                {content.troubleshooting.points.map((point) => (
-                  <Point key={point}>{point}</Point>
-                ))}
-              </CardContent>
-            </Card>
+                <Card className='rounded-lg'>
+                  <CardHeader>
+                    <CardTitle>
+                      {content.troubleshooting.mistakesTitle}
+                    </CardTitle>
+                    <CardDescription>
+                      {content.troubleshooting.mistakesDescription}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-3 text-sm'>
+                    {content.troubleshooting.points.map((point) => (
+                      <Point key={point}>{point}</Point>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </section>
           </div>
-        </section>
-      </div>
+        </TabsContent>
+        <TabsContent value='models'>
+          <ModelApiDocs baseUrl={baseUrl} />
+        </TabsContent>
+      </Tabs>
     </PublicLayout>
   )
 }
