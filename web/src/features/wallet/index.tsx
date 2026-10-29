@@ -220,13 +220,20 @@ export function Wallet(props: WalletProps) {
   const handlePaymentConfirm = async () => {
     if (!selectedPaymentMethod) return
 
+    const paymentWindow =
+      selectedPaymentMethod.provider === 'xunhu'
+        ? window.open('about:blank', '_blank')
+        : null
+    if (paymentWindow) paymentWindow.opener = null
+
     const success = await dispatchSelectedPayment(
       selectedPaymentMethod,
       topupAmount,
       selectedWaffoMethodIndex,
       {
         regular: processPayment,
-        xunhu: processXunhuPayment,
+        xunhu: (amount, paymentType) =>
+          processXunhuPayment(amount, paymentType, paymentWindow),
         waffo: processWaffoPayment,
         waffoPancake: processWaffoPancakePayment,
       }
