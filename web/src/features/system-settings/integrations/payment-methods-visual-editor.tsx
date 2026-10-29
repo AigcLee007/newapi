@@ -58,6 +58,26 @@ function getEffectiveIconName(method: PaymentMethodData) {
   return method.icon || getDefaultIconName(method.type)
 }
 
+function getGatewayLabel(method: PaymentMethodData) {
+  const gateway =
+    method.provider ??
+    (['stripe', 'waffo', 'waffo_pancake'].includes(method.type)
+      ? method.type
+      : 'epay')
+  switch (gateway) {
+    case 'xunhu':
+      return 'Xunhu'
+    case 'stripe':
+      return 'Stripe'
+    case 'waffo':
+      return 'Waffo'
+    case 'waffo_pancake':
+      return 'Waffo Pancake'
+    default:
+      return 'Epay'
+  }
+}
+
 export function PaymentMethodsVisualEditor({
   value,
   onChange,
@@ -106,6 +126,25 @@ export function PaymentMethodsVisualEditor({
         type: 'custom1',
       },
     },
+    {
+      name: t('Xunhu Alipay'),
+      template: {
+        icon: getDefaultIconName('alipay'),
+        name: t('Alipay'),
+        provider: 'xunhu',
+        type: 'xunhu_alipay',
+      },
+    },
+    {
+      name: t('Xunhu WeChat H5'),
+      template: {
+        icon: getDefaultIconName('wxpay'),
+        name: t('WeChat Pay'),
+        provider: 'xunhu',
+        type: 'xunhu_wechat_h5',
+        xunhu_type: 'WAP',
+      },
+    },
   ]
   const [searchText, setSearchText] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -127,6 +166,8 @@ export function PaymentMethodsVisualEditor({
         'type' in item &&
         typeof item.name === 'string' &&
         typeof item.type === 'string' &&
+        (!('provider' in item) || typeof item.provider === 'string') &&
+        (!('xunhu_type' in item) || typeof item.xunhu_type === 'string') &&
         (!('icon' in item) || typeof item.icon === 'string') &&
         (!('min_topup' in item) || typeof item.min_topup === 'string') &&
         (!('color' in item) || typeof item.color === 'string')
@@ -140,6 +181,7 @@ export function PaymentMethodsVisualEditor({
       (method) =>
         method.name.toLowerCase().includes(lowerSearch) ||
         method.type.toLowerCase().includes(lowerSearch) ||
+        getGatewayLabel(method).toLowerCase().includes(lowerSearch) ||
         getEffectiveIconName(method).toLowerCase().includes(lowerSearch)
     )
   }, [paymentMethods, searchText])
@@ -161,7 +203,10 @@ export function PaymentMethodsVisualEditor({
           'name' in item &&
           'type' in item &&
           item.name === editData.name &&
-          item.type === editData.type
+          item.type === editData.type &&
+          ('provider' in item && item.provider === 'xunhu'
+            ? 'xunhu'
+            : 'epay') === (editData.provider === 'xunhu' ? 'xunhu' : 'epay')
       )
       if (index !== -1) {
         updatedArray[index] = data
@@ -190,7 +235,10 @@ export function PaymentMethodsVisualEditor({
           'name' in item &&
           'type' in item &&
           item.name === method.name &&
-          item.type === method.type
+          item.type === method.type &&
+          ('provider' in item && item.provider === 'xunhu'
+            ? 'xunhu'
+            : 'epay') === (method.provider === 'xunhu' ? 'xunhu' : 'epay')
         )
     )
 
@@ -222,7 +270,9 @@ export function PaymentMethodsVisualEditor({
         'type' in item &&
         'name' in item &&
         item.type === template.type &&
-        item.name === template.name
+        item.name === template.name &&
+        ('provider' in item && item.provider === 'xunhu' ? 'xunhu' : 'epay') ===
+          (template.provider === 'xunhu' ? 'xunhu' : 'epay')
     )
 
     if (!exists) {
@@ -308,7 +358,9 @@ export function PaymentMethodsVisualEditor({
           <StaticDataTable
             className='hidden rounded-none border-0 md:block'
             data={filteredMethods}
-            getRowKey={(method, index) => `${method.type}-${index}`}
+            getRowKey={(method, index) =>
+              `${method.provider ?? 'epay'}-${method.type}-${index}`
+            }
             columns={[
               {
                 id: 'name',
@@ -324,6 +376,16 @@ export function PaymentMethodsVisualEditor({
                     {method.type}
                   </code>
                 ),
+              },
+              {
+                id: 'gateway',
+                header: t('Payment gateway'),
+                cell: (method) => getGatewayLabel(method),
+              },
+              {
+                id: 'gateway',
+                header: t('Payment gateway'),
+                cell: (method) => getGatewayLabel(method),
               },
               {
                 id: 'icon',
@@ -382,6 +444,7 @@ export function PaymentMethodsVisualEditor({
             {filteredMethods.map((method) => {
               const iconName = getEffectiveIconName(method)
               const methodKey = [
+                method.provider,
                 method.type,
                 method.name,
                 method.icon,
@@ -399,6 +462,9 @@ export function PaymentMethodsVisualEditor({
                       <code className='bg-muted rounded px-1.5 py-0.5 text-xs'>
                         {method.type}
                       </code>
+                      <div className='text-muted-foreground mt-1 text-xs'>
+                        {getGatewayLabel(method)}
+                      </div>
                     </div>
                     <div className='flex gap-1'>
                       <Button

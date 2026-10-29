@@ -104,6 +104,7 @@ const paymentSchema = z.object({
   }, 'Provide a valid callback URL starting with http:// or https://'),
   EpayId: z.string(),
   EpayKey: z.string(),
+  XunhuAppId: z.string(),
   Price: z.coerce.number().min(0),
   MinTopUp: z.coerce.number().min(0),
   CustomCallbackAddress: z
@@ -199,6 +200,7 @@ type PaymentComplianceDefaults = {
 
 type PaymentSettingsSectionProps = {
   defaultValues: PaymentBaseFormValues
+  xunhuSecretConfigured: boolean
   waffoDefaultValues: WaffoSettingsValues
   waffoPancakeDefaultValues: WaffoPancakeSettingsValues
   waffoPancakeProvisionedStoreID?: string
@@ -217,6 +219,7 @@ function parseWaffoPayMethods(value: string): PayMethod[] {
 
 export function PaymentSettingsSection({
   defaultValues,
+  xunhuSecretConfigured,
   waffoDefaultValues,
   waffoPancakeDefaultValues,
   waffoPancakeProvisionedStoreID,
@@ -423,6 +426,7 @@ export function PaymentSettingsSection({
       PayAddress: removeTrailingSlash(values.PayAddress),
       EpayId: values.EpayId.trim(),
       EpayKey: values.EpayKey.trim(),
+      XunhuAppId: values.XunhuAppId.trim(),
       Price: values.Price,
       MinTopUp: values.MinTopUp,
       CustomCallbackAddress: removeTrailingSlash(values.CustomCallbackAddress),
@@ -465,6 +469,7 @@ export function PaymentSettingsSection({
       PayAddress: removeTrailingSlash(initialRef.current.PayAddress),
       EpayId: initialRef.current.EpayId.trim(),
       EpayKey: initialRef.current.EpayKey.trim(),
+      XunhuAppId: initialRef.current.XunhuAppId.trim(),
       Price: initialRef.current.Price,
       MinTopUp: initialRef.current.MinTopUp,
       CustomCallbackAddress: removeTrailingSlash(
@@ -520,6 +525,13 @@ export function PaymentSettingsSection({
 
     if (sanitized.EpayKey && sanitized.EpayKey !== initial.EpayKey) {
       updates.push({ key: 'EpayKey', value: sanitized.EpayKey })
+    }
+
+    if (sanitized.XunhuAppId !== initial.XunhuAppId) {
+      updates.push({
+        key: 'payment_setting.xunhu_app_id',
+        value: sanitized.XunhuAppId,
+      })
     }
 
     if (sanitized.Price !== initial.Price) {
@@ -882,9 +894,10 @@ export function PaymentSettingsSection({
           />
           <Tabs defaultValue='general' className='min-w-0'>
             <div className='overflow-x-auto pb-1'>
-              <TabsList className='grid min-w-[44rem] grid-cols-6'>
+              <TabsList className='grid min-w-[52rem] grid-cols-7'>
                 <TabsTrigger value='general'>{t('General')}</TabsTrigger>
                 <TabsTrigger value='epay'>Epay</TabsTrigger>
+                <TabsTrigger value='xunhu'>Xunhu</TabsTrigger>
                 <TabsTrigger value='stripe'>{t('Stripe')}</TabsTrigger>
                 <TabsTrigger value='creem'>Creem</TabsTrigger>
                 <TabsTrigger value='waffo-pancake'>Waffo Pancake</TabsTrigger>
@@ -1007,7 +1020,7 @@ export function PaymentSettingsSection({
                       </FormControl>
                       <FormDescription>
                         {t(
-                          'Configured as PayMethods JSON. The type value decides which payment flow is used: stripe for Stripe, waffo_pancake for Waffo Pancake, and other values are sent to Epay as the type parameter.'
+                          'Choose Epay or Xunhu for each payment method. Legacy methods without a gateway remain on Epay.'
                         )}
                       </FormDescription>
                       <FormMessage />
@@ -1254,6 +1267,52 @@ export function PaymentSettingsSection({
                       </FormItem>
                     )}
                   />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value='xunhu' className={paymentTabContentClassName}>
+              <div className='space-y-4'>
+                <div>
+                  <h3 className='text-lg font-medium'>Xunhu</h3>
+                  <p className='text-muted-foreground text-sm'>
+                    {t('Configuration for Xunhu wallet top-ups in CNY')}
+                  </p>
+                </div>
+
+                <div className='grid gap-6 md:grid-cols-2'>
+                  <FormField
+                    control={form.control}
+                    name='XunhuAppId'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('Xunhu App ID')}</FormLabel>
+                        <FormControl>
+                          <Input autoComplete='off' {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          {t(
+                            'Use the App ID from your Xunhu merchant account.'
+                          )}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className='space-y-2'>
+                    <FormLabel>{t('Xunhu App Secret')}</FormLabel>
+                    <p className='text-muted-foreground text-sm'>
+                      {t(
+                        'Set XUNHU_APP_SECRET on the server to enable Xunhu payments.'
+                      )}
+                    </p>
+                    <p className='text-sm font-medium'>
+                      {xunhuSecretConfigured
+                        ? t('Configured')
+                        : t('Not configured')}
+                    </p>
+                  </div>
                 </div>
               </div>
             </TabsContent>

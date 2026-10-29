@@ -96,7 +96,7 @@ func isEpayTopUpEnabled() bool {
 	if !isPaymentComplianceConfirmed() {
 		return false
 	}
-	return isEpayWebhookConfigured() && len(operation_setting.PayMethods) > 0
+	return isEpayWebhookConfigured() && len(operation_setting.GetPayMethodsForProvider("epay")) > 0
 }
 
 func isEpayWebhookConfigured() bool {
@@ -107,4 +107,18 @@ func isEpayWebhookConfigured() bool {
 
 func isEpayWebhookEnabled() bool {
 	return isEpayTopUpEnabled()
+}
+
+func isXunhuTopUpEnabled() bool {
+	if !isPaymentComplianceConfirmed() {
+		return false
+	}
+	paymentSetting := operation_setting.GetPaymentSetting()
+	return strings.TrimSpace(paymentSetting.XunhuAppId) != "" &&
+		operation_setting.GetXunhuAppSecret() != "" &&
+		len(operation_setting.GetPayMethodsForProvider("xunhu")) > 0
+}
+
+func isXunhuWebhookEnabled() bool {
+	return isXunhuTopUpEnabled()
 }

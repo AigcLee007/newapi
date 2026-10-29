@@ -19,12 +19,29 @@ For commercial licensing, please contact support@quantumnous.com
 import { describe, expect, test } from 'vitest'
 
 import { PAYMENT_TYPES } from '../constants'
+import type { TopupInfo } from '../types'
 import {
   dispatchSelectedPayment,
+  getMinTopupAmount,
   isStripePayment,
   isWaffoPayment,
   isWaffoPancakePayment,
 } from './payment'
+
+test('uses the configured online minimum when Xunhu is the only standard gateway', () => {
+  const topupInfo: TopupInfo = {
+    enable_online_topup: false,
+    enable_xunhu_topup: true,
+    enable_stripe_topup: false,
+    pay_methods: [],
+    min_topup: 25,
+    stripe_min_topup: 10,
+    amount_options: [],
+    discount: {},
+  }
+
+  expect(getMinTopupAmount(topupInfo)).toBe(25)
+})
 
 describe('payment type classification', () => {
   test('keeps Waffo and Waffo Pancake on their dedicated flows', () => {
@@ -48,6 +65,7 @@ describe('payment dispatch', () => {
           calls.push('regular')
           return false
         },
+        xunhu: async () => false,
         waffo: async (amount, index) => {
           calls.push(`waffo:${amount}:${index}`)
           return true
@@ -71,6 +89,7 @@ describe('payment dispatch', () => {
       null,
       {
         regular: async () => false,
+        xunhu: async () => false,
         waffo: async () => {
           called = true
           return true
@@ -81,5 +100,36 @@ describe('payment dispatch', () => {
 
     expect(success).toBe(false)
     expect(called).toBe(false)
+  })
+
+  test('routes duplicate payment type keys by gateway', async () => {
+    const calls: string[] = []
+    const processors = {
+      regular: async (_amount: number, type: string) => {
+        calls.push(`epay:${type}`)
+        return true
+      },
+      xunhu: async (_amount: number, type: string) => {
+        calls.push(`xunhu:${type}`)
+        return true
+      },
+      waffo: async () => false,
+      waffoPancake: async () => false,
+    }
+
+    await dispatchSelectedPayment(
+      { name: 'Alipay', type: 'alipay' },
+      50,
+      null,
+      processors
+    )
+    await dispatchSelectedPayment(
+      { name: 'Xunhu Alipay', type: 'alipay', provider: 'xunhu' },
+      50,
+      null,
+      processors
+    )
+
+    expect(calls).toEqual(['epay:alipay', 'xunhu:alipay'])
   })
 })

@@ -41,6 +41,8 @@ const createPaymentMethodDialogSchema = (t: (key: string) => string) =>
   z.object({
     name: z.string().min(1, t('Payment method name is required')),
     type: z.string().min(1, t('Payment type key is required')),
+    provider: z.enum(['epay', 'xunhu']),
+    xunhu_type: z.string().optional(),
     icon: z.string().optional(),
     min_topup: z.string().optional(),
   })
@@ -54,6 +56,8 @@ const PAYMENT_METHOD_FORM_ID = 'payment-method-form'
 export type PaymentMethodData = {
   name: string
   type: string
+  provider?: string
+  xunhu_type?: string
   icon?: string
   min_topup?: string
   color?: string
@@ -118,18 +122,33 @@ export function PaymentMethodDialog({
     defaultValues: {
       name: '',
       type: '',
+      provider: 'epay',
+      xunhu_type: '',
       icon: '',
       min_topup: '',
     },
   })
 
   const iconValue = form.watch('icon')
+  const paymentType = form.watch('type')
+  const provider = form.watch('provider')
+  const fixedGateway = ['stripe', 'waffo', 'waffo_pancake'].includes(
+    paymentType
+  )
+  const fixedGatewayLabel =
+    {
+      stripe: t('Stripe'),
+      waffo: 'Waffo',
+      waffo_pancake: 'Waffo Pancake',
+    }[paymentType] ?? 'Epay'
 
   useEffect(() => {
     if (editData) {
       form.reset({
         name: editData.name,
         type: editData.type,
+        provider: editData.provider === 'xunhu' ? 'xunhu' : 'epay',
+        xunhu_type: editData.xunhu_type ?? '',
         icon: editData.icon ?? getDefaultIconName(editData.type),
         min_topup: editData.min_topup ?? '',
       })
@@ -137,6 +156,8 @@ export function PaymentMethodDialog({
       form.reset({
         name: '',
         type: '',
+        provider: 'epay',
+        xunhu_type: '',
         icon: '',
         min_topup: '',
       })
@@ -147,6 +168,12 @@ export function PaymentMethodDialog({
     const data: PaymentMethodData = {
       name: values.name,
       type: values.type,
+    }
+    if (values.provider === 'xunhu' && !fixedGateway) {
+      data.provider = 'xunhu'
+      if (values.xunhu_type?.trim()) {
+        data.xunhu_type = values.xunhu_type.trim()
+      }
     }
     if (values.icon && values.icon.trim() !== '') {
       data.icon = values.icon.trim()
@@ -225,6 +252,12 @@ export function PaymentMethodDialog({
 
                       field.onChange(value)
                       if (
+                        ['stripe', 'waffo', 'waffo_pancake'].includes(value)
+                      ) {
+                        form.setValue('provider', 'epay')
+                        form.setValue('xunhu_type', '')
+                      }
+                      if (
                         nextOption?.iconName &&
                         (!currentIcon ||
                           currentIcon === previousOption?.iconName)
@@ -249,13 +282,78 @@ export function PaymentMethodDialog({
                 </FormControl>
                 <FormDescription className='leading-relaxed'>
                   {t(
-                    'Used to decide the payment flow. Built-in keys include stripe for Stripe and waffo_pancake for Waffo Pancake; other values are sent to Epay as the type parameter.'
+                    'This key identifies the payment method. The selected gateway controls how the method is processed.'
                   )}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          {fixedGateway ? (
+            <FormItem>
+              <FormLabel>{t('Payment gateway')}</FormLabel>
+              <Input value={fixedGatewayLabel} disabled />
+            </FormItem>
+          ) : (
+            <FormField
+              control={form.control}
+              name='provider'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Payment gateway')}</FormLabel>
+                  <FormControl>
+                    <Combobox
+                      options={[
+                        { label: 'Epay', value: 'epay' },
+                        { label: 'Xunhu', value: 'xunhu' },
+                      ]}
+                      value={field.value}
+                      onValueChange={(value) => {
+                        if (value === 'epay' || value === 'xunhu') {
+                          field.onChange(value)
+                          if (value === 'epay') {
+                            form.setValue('xunhu_type', '')
+                          }
+                        }
+                      }}
+                      placeholder={t('Select a payment gateway')}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Choose which gateway processes this payment method.')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {provider === 'xunhu' && !fixedGateway && (
+            <FormField
+              control={form.control}
+              name='xunhu_type'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Xunhu request type')}</FormLabel>
+                  <FormControl>
+                    <Combobox
+                      options={[{ label: 'WAP', value: 'WAP' }]}
+                      value={field.value ?? ''}
+                      onValueChange={(value) => field.onChange(value ?? '')}
+                      placeholder={t('Default channel')}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Select WAP for WeChat H5; leave empty for other channels.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={form.control}
