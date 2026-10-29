@@ -21,7 +21,8 @@ import { useTranslation } from 'react-i18next'
 
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatQuota } from '@/lib/format'
+import { formatNumber, formatQuota } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 import type { UserWalletData } from '../types'
 
@@ -34,9 +35,19 @@ export function WalletStatsCard(props: WalletStatsCardProps) {
   const { t } = useTranslation()
   if (props.loading) {
     return (
-      <div className='grid grid-cols-3 divide-x rounded-lg border'>
-        {['balance', 'usage', 'requests'].map((key) => (
-          <div key={key} className='min-w-0 px-2.5 py-2.5 sm:px-5 sm:py-4'>
+      <div className='grid grid-cols-2 overflow-hidden rounded-lg border sm:grid-cols-3'>
+        {['balance', 'usage', 'requests'].map((key, index) => (
+          <div
+            key={key}
+            className={cn(
+              'min-w-0 px-3 py-3 sm:px-5 sm:py-4',
+              index === 0 &&
+                'col-span-2 border-b bg-success/5 sm:col-span-1 sm:border-b-0',
+              index > 0 && 'border-t sm:border-t-0',
+              index === 1 && 'sm:border-l',
+              index === 2 && 'border-l sm:border-l'
+            )}
+          >
             <Skeleton className='h-3.5 w-full' />
             <Skeleton className='mt-2 h-6 w-full sm:h-7' />
             <Skeleton className='mt-1.5 hidden h-3.5 w-24 md:block' />
@@ -69,7 +80,7 @@ export function WalletStatsCard(props: WalletStatsCardProps) {
     },
     {
       label: t('API Requests'),
-      value: (props.user?.request_count ?? 0).toLocaleString(),
+      value: formatNumber(props.user?.request_count ?? 0),
       description: t('Total requests made'),
       icon: Activity,
       tone: 'chart-4',
@@ -77,26 +88,41 @@ export function WalletStatsCard(props: WalletStatsCardProps) {
   ]
 
   return (
-    <div className='grid grid-cols-3 divide-x rounded-lg border'>
-      {stats.map((item) => (
-        <div key={item.label} className='min-w-0 px-2.5 py-2.5 sm:px-5 sm:py-4'>
-          <div className='flex items-center gap-1.5 sm:gap-2.5'>
+    <dl className='bg-card grid grid-cols-2 overflow-hidden rounded-lg border sm:grid-cols-3'>
+      {stats.map((item, index) => (
+        <div
+          key={item.label}
+          className={cn(
+            'min-w-0 px-3 py-3 sm:px-5 sm:py-4',
+            index === 0 &&
+              'col-span-2 border-b bg-success/5 sm:col-span-1 sm:border-b-0',
+            index > 0 && 'border-t sm:border-t-0',
+            index === 1 && 'sm:border-l',
+            index === 2 && 'border-l sm:border-l'
+          )}
+        >
+          <dt className='text-muted-foreground flex min-w-0 items-center gap-1.5 text-[11px] font-medium tracking-wider uppercase sm:gap-2.5 sm:text-xs'>
             <IconBadge tone={item.tone} size='stat'>
               <item.icon />
             </IconBadge>
-            <div className='text-muted-foreground truncate text-[11px] font-medium tracking-wider uppercase sm:text-xs'>
-              {item.label}
-            </div>
-          </div>
+            <span className='truncate'>{item.label}</span>
+          </dt>
 
-          <div className='text-foreground mt-1.5 font-mono text-sm font-bold tracking-tight break-all tabular-nums sm:mt-2.5 sm:text-2xl'>
+          <dd
+            className={cn(
+              'mt-1.5 font-mono font-bold tabular-nums sm:mt-2.5',
+              index === 0
+                ? 'text-foreground text-xl sm:text-2xl'
+                : 'text-foreground text-base sm:text-xl'
+            )}
+          >
             {item.value}
-          </div>
-          <div className='text-muted-foreground/60 mt-1 hidden text-xs md:block'>
+          </dd>
+          <dd className='text-muted-foreground/60 mt-1 hidden text-xs md:block'>
             {item.description}
-          </div>
+          </dd>
         </div>
       ))}
-    </div>
+    </dl>
   )
 }
