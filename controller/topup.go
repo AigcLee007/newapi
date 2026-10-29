@@ -531,18 +531,27 @@ func RequestAmount(c *gin.Context) {
 		return
 	}
 	payMoney := getPayMoney(req.Amount, group)
+	var xunhuBaseAmount, xunhuPayAmount decimal.Decimal
 	if req.Provider == model.PaymentProviderXunhu {
 		if !isXunhuTopUpEnabled() || !operation_setting.ContainsPayMethodForProvider(req.PaymentMethod, model.PaymentProviderXunhu) {
 			paymentError(c, common.NewMessage("Payment method does not exist"))
 			return
 		}
-		payMoney = xunhuFeeIncludedAmount(decimal.NewFromFloat(payMoney).Round(2)).InexactFloat64()
+		xunhuBaseAmount = decimal.NewFromFloat(payMoney).Round(2)
+		xunhuPayAmount = xunhuFeeIncludedAmount(xunhuBaseAmount)
+		payMoney = xunhuPayAmount.InexactFloat64()
 	}
 	if payMoney <= 0.01 {
 		paymentError(c, common.NewMessage("Payment amount is too low"))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "success", "data": strconv.FormatFloat(payMoney, 'f', 2, 64)})
+	response := gin.H{"message": "success", "data": strconv.FormatFloat(payMoney, 'f', 2, 64)}
+	if req.Provider == model.PaymentProviderXunhu {
+		response["base_amount"] = xunhuBaseAmount.StringFixed(2)
+		response["fee_amount"] = xunhuPayAmount.Sub(xunhuBaseAmount).StringFixed(2)
+		response["fee_percent"] = xunhuFeePercent
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 func GetUserTopUps(c *gin.Context) {
