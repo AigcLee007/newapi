@@ -34,7 +34,11 @@ export interface ApiResponse<T = unknown> {
  */
 export type TopupInfoResponse = ApiResponse<TopupInfo>
 export type RedemptionResponse = ApiResponse<number>
-export type AmountResponse = ApiResponse<string>
+export interface AmountResponse extends ApiResponse<string> {
+  base_amount?: string
+  fee_amount?: string
+  fee_percent?: number
+}
 export type PaymentResponse = ApiResponse<Record<string, unknown>> & {
   url?: string
 }

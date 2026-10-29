@@ -93,6 +93,9 @@ export function Wallet(props: WalletProps) {
   }, [currency?.quotaDisplayType, currency?.usdExchangeRate])
   const {
     amount: paymentAmount,
+    paymentBaseAmount,
+    paymentFeeAmount,
+    paymentFeePercent,
     calculating,
     processing,
     calculatePaymentAmount,
@@ -384,6 +387,9 @@ export function Wallet(props: WalletProps) {
         onConfirm={handlePaymentConfirm}
         topupAmount={topupAmount}
         paymentAmount={paymentAmount}
+        paymentBaseAmount={paymentBaseAmount}
+        paymentFeeAmount={paymentFeeAmount}
+        paymentFeePercent={paymentFeePercent}
         paymentMethod={selectedPaymentMethod}
         calculating={calculating}
         processing={processing || waffoProcessing || pancakeProcessing}

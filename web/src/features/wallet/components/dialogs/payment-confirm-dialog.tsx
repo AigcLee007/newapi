@@ -42,6 +42,9 @@ interface PaymentConfirmDialogProps {
   onConfirm: () => void
   topupAmount: number
   paymentAmount: number
+  paymentBaseAmount?: number
+  paymentFeeAmount?: number
+  paymentFeePercent?: number
   paymentMethod: PaymentMethod | undefined
   calculating: boolean
   processing: boolean
@@ -55,6 +58,9 @@ export function PaymentConfirmDialog({
   onConfirm,
   topupAmount,
   paymentAmount,
+  paymentBaseAmount,
+  paymentFeeAmount,
+  paymentFeePercent,
   paymentMethod,
   calculating,
   processing,
@@ -62,9 +68,24 @@ export function PaymentConfirmDialog({
   usdExchangeRate = 1,
 }: PaymentConfirmDialogProps) {
   const { t } = useTranslation()
-  const hasDiscount = discountRate > 0 && discountRate < 1 && paymentAmount > 0
+  const hasXunhuFeeDetails =
+    paymentMethod?.provider === 'xunhu' &&
+    paymentBaseAmount !== undefined &&
+    paymentFeeAmount !== undefined &&
+    paymentFeePercent !== undefined
+  const hasDiscount =
+    !hasXunhuFeeDetails &&
+    discountRate > 0 &&
+    discountRate < 1 &&
+    paymentAmount > 0
   const originalAmount = hasDiscount ? paymentAmount / discountRate : 0
   const discountAmount = hasDiscount ? originalAmount - paymentAmount : 0
+  const paymentCurrencyOptions = {
+    digitsLarge: 2,
+    digitsSmall: 2,
+    minimumFractionDigits: 2,
+    abbreviate: false,
+  } as const
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -79,48 +100,104 @@ export function PaymentConfirmDialog({
         </AlertDialogHeader>
 
         <div className='space-y-3 py-3 sm:space-y-4 sm:py-4'>
-          <div className='flex items-center justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('Topup Amount')}
-            </span>
-            <span className='text-lg font-semibold'>
-              {formatLocalCurrencyAmount(topupAmount * usdExchangeRate, {
-                digitsLarge: 2,
-                digitsSmall: 2,
-                abbreviate: false,
-              })}
-            </span>
-          </div>
-
-          <div className='flex items-center justify-between'>
-            <span className='text-muted-foreground text-sm'>
-              {t('You Pay')}
-            </span>
-            {calculating ? (
-              <Skeleton className='h-6 w-24' />
-            ) : (
-              <div className='flex items-baseline gap-2'>
-                <span className='text-2xl font-semibold'>
-                  {formatCurrency(paymentAmount)}
+          {hasXunhuFeeDetails ? (
+            <div className='space-y-2 rounded-md border px-4 py-3'>
+              <div className='flex items-center justify-between gap-4 text-sm'>
+                <span className='text-muted-foreground'>
+                  {t('Payment amount')}
                 </span>
-                {hasDiscount && (
-                  <span className='text-muted-foreground text-sm line-through'>
-                    {formatCurrency(originalAmount)}
+                {calculating ? (
+                  <Skeleton className='h-5 w-20' />
+                ) : (
+                  <span>
+                    {formatLocalCurrencyAmount(
+                      paymentBaseAmount,
+                      paymentCurrencyOptions
+                    )}
                   </span>
                 )}
               </div>
-            )}
-          </div>
-
-          {hasDiscount && !calculating && (
-            <div className='bg-muted/50 rounded-lg p-3'>
-              <div className='flex items-center justify-between text-sm'>
-                <span className='text-muted-foreground'>{t('You save')}</span>
-                <span className='font-semibold text-green-600'>
-                  {formatCurrency(discountAmount)}
+              <div className='flex items-center justify-between gap-4 text-sm'>
+                <span className='text-muted-foreground'>
+                  {t('Processing fee ({{percent}}%)', {
+                    percent: paymentFeePercent,
+                  })}
                 </span>
+                {calculating ? (
+                  <Skeleton className='h-5 w-20' />
+                ) : (
+                  <span>
+                    {formatLocalCurrencyAmount(
+                      paymentFeeAmount,
+                      paymentCurrencyOptions
+                    )}
+                  </span>
+                )}
+              </div>
+              <div className='flex items-center justify-between gap-4 border-t pt-2'>
+                <span className='text-muted-foreground text-sm'>
+                  {t('Total payment')}
+                </span>
+                {calculating ? (
+                  <Skeleton className='h-6 w-24' />
+                ) : (
+                  <span className='text-lg font-semibold'>
+                    {formatLocalCurrencyAmount(
+                      paymentAmount,
+                      paymentCurrencyOptions
+                    )}
+                  </span>
+                )}
               </div>
             </div>
+          ) : (
+            <>
+              <div className='flex items-center justify-between'>
+                <span className='text-muted-foreground text-sm'>
+                  {t('Topup Amount')}
+                </span>
+                <span className='text-lg font-semibold'>
+                  {formatLocalCurrencyAmount(topupAmount * usdExchangeRate, {
+                    digitsLarge: 2,
+                    digitsSmall: 2,
+                    abbreviate: false,
+                  })}
+                </span>
+              </div>
+
+              <div className='flex items-center justify-between'>
+                <span className='text-muted-foreground text-sm'>
+                  {t('You Pay')}
+                </span>
+                {calculating ? (
+                  <Skeleton className='h-6 w-24' />
+                ) : (
+                  <div className='flex items-baseline gap-2'>
+                    <span className='text-2xl font-semibold'>
+                      {formatCurrency(paymentAmount)}
+                    </span>
+                    {hasDiscount && (
+                      <span className='text-muted-foreground text-sm line-through'>
+                        {formatCurrency(originalAmount)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {hasDiscount && !calculating && (
+                <div className='bg-muted/50 rounded-lg p-3'>
+                  <div className='flex items-center justify-between text-sm'>
+                    <span className='text-muted-foreground'>
+                      {t('You save')}
+                    </span>
+                    <span className='font-semibold text-green-600'>
+                      {formatCurrency(discountAmount)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <div className='border-t pt-4'>
@@ -141,13 +218,34 @@ export function PaymentConfirmDialog({
           </div>
         </div>
 
-        <AlertDialogFooter className='grid grid-cols-2 gap-2 sm:flex'>
+        <AlertDialogFooter
+          className={
+            hasXunhuFeeDetails
+              ? 'flex-col-reverse sm:flex-col'
+              : 'grid grid-cols-2 gap-2 sm:flex'
+          }
+        >
           <AlertDialogCancel disabled={processing}>
             {t('Cancel')}
           </AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} disabled={processing}>
+          <AlertDialogAction
+            className={
+              hasXunhuFeeDetails
+                ? 'h-auto min-h-8 w-full max-w-full text-center leading-tight whitespace-normal'
+                : undefined
+            }
+            onClick={onConfirm}
+            disabled={processing}
+          >
             {processing && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            {t('Confirm Payment')}
+            {hasXunhuFeeDetails
+              ? t('Confirm Payment {{amount}}', {
+                  amount: formatLocalCurrencyAmount(
+                    paymentAmount,
+                    paymentCurrencyOptions
+                  ),
+                })
+              : t('Confirm Payment')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

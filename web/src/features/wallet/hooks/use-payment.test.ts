@@ -34,7 +34,13 @@ describe('payment amount routing', () => {
       {
         regular: async (request) => {
           requests.push(request)
-          return { success: true, data: '10.20' }
+          return {
+            success: true,
+            data: '10.20',
+            base_amount: '10.00',
+            fee_amount: '0.20',
+            fee_percent: 2,
+          }
         },
         stripe: async () => ({ success: true, data: '0' }),
         waffo: async () => ({ success: true, data: '0' }),
@@ -43,7 +49,12 @@ describe('payment amount routing', () => {
       'xunhu'
     )
 
-    expect(amount).toBe(10.2)
+    expect(amount).toEqual({
+      amount: 10.2,
+      baseAmount: 10,
+      feeAmount: 0.2,
+      feePercent: 2,
+    })
     expect(requests).toEqual([
       { amount: 10, provider: 'xunhu', payment_method: 'wxpay' },
     ])
@@ -51,7 +62,7 @@ describe('payment amount routing', () => {
 
   test('uses the dedicated Waffo amount calculator', async () => {
     const calls: string[] = []
-    const amount = await requestPaymentAmount(120, PAYMENT_TYPES.WAFFO, {
+    const preview = await requestPaymentAmount(120, PAYMENT_TYPES.WAFFO, {
       regular: async () => {
         calls.push('regular')
         return { success: true, data: '1' }
@@ -70,7 +81,7 @@ describe('payment amount routing', () => {
       },
     })
 
-    expect(amount).toBe(18.75)
+    expect(preview).toEqual({ amount: 18.75 })
     expect(calls).toEqual(['waffo:120'])
   })
 })

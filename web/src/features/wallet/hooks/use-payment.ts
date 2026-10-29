@@ -46,6 +46,13 @@ import type { AmountRequest, AmountResponse, XunhuCheckout } from '../types'
 
 type AmountCalculator = (request: AmountRequest) => Promise<AmountResponse>
 
+export interface PaymentAmountPreview {
+  amount: number
+  baseAmount?: number
+  feeAmount?: number
+  feePercent?: number
+}
+
 export interface PaymentAmountCalculators {
   regular: AmountCalculator
   stripe: AmountCalculator
@@ -65,7 +72,7 @@ export async function requestPaymentAmount(
   paymentType: string,
   calculators: PaymentAmountCalculators = defaultPaymentAmountCalculators,
   paymentProvider?: string
-): Promise<number> {
+): Promise<PaymentAmountPreview> {
   let calculator = calculators.regular
   if (isStripePayment(paymentType)) {
     calculator = calculators.stripe
@@ -83,14 +90,30 @@ export async function requestPaymentAmount(
 
   const response = await calculator(request)
   if (!isApiSuccess(response) || !response.data) {
-    return 0
+    return { amount: 0 }
   }
 
-  return Number.parseFloat(response.data)
+  const preview: PaymentAmountPreview = {
+    amount: Number.parseFloat(response.data),
+  }
+  if (
+    paymentProvider === 'xunhu' &&
+    response.base_amount !== undefined &&
+    response.fee_amount !== undefined &&
+    response.fee_percent !== undefined
+  ) {
+    preview.baseAmount = Number.parseFloat(response.base_amount)
+    preview.feeAmount = Number.parseFloat(response.fee_amount)
+    preview.feePercent = response.fee_percent
+  }
+  return preview
 }
 
 export function usePayment() {
   const [amount, setAmount] = useState<number>(0)
+  const [paymentBaseAmount, setPaymentBaseAmount] = useState<number>()
+  const [paymentFeeAmount, setPaymentFeeAmount] = useState<number>()
+  const [paymentFeePercent, setPaymentFeePercent] = useState<number>()
   const [calculating, setCalculating] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [xunhuCheckout, setXunhuCheckout] = useState<XunhuCheckout | null>(null)
@@ -104,16 +127,25 @@ export function usePayment() {
     ) => {
       try {
         setCalculating(true)
-        const calculatedAmount = await requestPaymentAmount(
+        setPaymentBaseAmount(undefined)
+        setPaymentFeeAmount(undefined)
+        setPaymentFeePercent(undefined)
+        const preview = await requestPaymentAmount(
           topupAmount,
           paymentType,
           defaultPaymentAmountCalculators,
           paymentProvider
         )
-        setAmount(calculatedAmount)
-        return calculatedAmount
+        setAmount(preview.amount)
+        setPaymentBaseAmount(preview.baseAmount)
+        setPaymentFeeAmount(preview.feeAmount)
+        setPaymentFeePercent(preview.feePercent)
+        return preview.amount
       } catch {
         setAmount(0)
+        setPaymentBaseAmount(undefined)
+        setPaymentFeeAmount(undefined)
+        setPaymentFeePercent(undefined)
         return 0
       } finally {
         setCalculating(false)
@@ -203,6 +235,9 @@ export function usePayment() {
 
   return {
     amount,
+    paymentBaseAmount,
+    paymentFeeAmount,
+    paymentFeePercent,
     calculating,
     processing,
     calculatePaymentAmount,

@@ -111,7 +111,7 @@ func TestRequestAmountIncludesXunhuFeeOnlyForXunhu(t *testing.T) {
 		{
 			name:     "Xunhu payment includes two percent",
 			body:     `{"amount":10,"provider":"xunhu","payment_method":"wxpay"}`,
-			wantBody: `{"message":"success","data":"10.20"}`,
+			wantBody: `{"message":"success","data":"10.20","base_amount":"10.00","fee_amount":"0.20","fee_percent":2}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
