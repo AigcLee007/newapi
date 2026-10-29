@@ -34,6 +34,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { formatLocalCurrencyAmount } from '@/lib/currency'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -61,6 +62,10 @@ interface RechargeFormCardProps {
   topupAmount: number
   onTopupAmountChange: (amount: number) => void
   paymentAmount: number
+  paymentProvider?: string
+  paymentBaseAmount?: number
+  paymentFeeAmount?: number
+  paymentFeePercent?: number
   calculating: boolean
   onPaymentMethodSelect: (method: PaymentMethod) => void
   paymentLoading: string | null
@@ -91,6 +96,10 @@ export function RechargeFormCard({
   topupAmount,
   onTopupAmountChange,
   paymentAmount,
+  paymentProvider,
+  paymentBaseAmount,
+  paymentFeeAmount,
+  paymentFeePercent,
   calculating,
   onPaymentMethodSelect,
   paymentLoading,
@@ -143,6 +152,17 @@ export function RechargeFormCard({
     Array.isArray(waffoPayMethods) && waffoPayMethods.length > 0
   const minTopup = getMinTopupAmount(topupInfo)
   const redemptionEnabled = topupInfo?.enable_redemption !== false
+  const hasXunhuFeeDetails =
+    paymentProvider === 'xunhu' &&
+    paymentBaseAmount !== undefined &&
+    paymentFeeAmount !== undefined &&
+    paymentFeePercent !== undefined
+  const paymentCurrencyOptions = {
+    digitsLarge: 2,
+    digitsSmall: 2,
+    minimumFractionDigits: 2,
+    abbreviate: false,
+  } as const
 
   if (loading) {
     return (
@@ -299,7 +319,14 @@ export function RechargeFormCard({
                 >
                   {t('Custom Amount')}
                 </Label>
-                <div className='grid grid-cols-[minmax(0,1fr)_minmax(110px,0.55fr)] gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center'>
+                <div
+                  className={cn(
+                    'grid gap-2 lg:items-center',
+                    hasXunhuFeeDetails
+                      ? 'grid-cols-1'
+                      : 'grid-cols-[minmax(0,1fr)_minmax(110px,0.55fr)] lg:grid-cols-[minmax(0,1fr)_auto]'
+                  )}
+                >
                   <Input
                     id='topup-amount'
                     type='number'
@@ -309,19 +336,67 @@ export function RechargeFormCard({
                     placeholder={t('Minimum {{amount}}', { amount: minTopup })}
                     className='h-9 text-base sm:h-10 sm:text-lg'
                   />
-                  <div className='bg-muted/30 flex min-h-9 items-center justify-between gap-2 rounded-md border px-3 lg:min-w-52'>
-                    <span className='text-muted-foreground truncate text-xs'>
-                      {t('Amount to pay:')}
+                  {!hasXunhuFeeDetails && (
+                    <div className='bg-muted/30 flex min-h-9 items-center justify-between gap-2 rounded-md border px-3 lg:min-w-52'>
+                      <span className='text-muted-foreground truncate text-xs'>
+                        {t('Amount to pay:')}
+                      </span>
+                      {calculating ? (
+                        <Skeleton className='h-5 w-16' />
+                      ) : (
+                        <span className='text-sm font-semibold'>
+                          {formatCurrency(paymentAmount)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {hasXunhuFeeDetails && (
+                  <div className='bg-muted/30 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 rounded-md border px-3 py-2.5 text-xs sm:px-4'>
+                    <span className='text-muted-foreground'>
+                      {t('Payment amount')}
                     </span>
                     {calculating ? (
-                      <Skeleton className='h-5 w-16' />
+                      <Skeleton className='h-4 w-20' />
                     ) : (
-                      <span className='text-sm font-semibold'>
-                        {formatCurrency(paymentAmount)}
+                      <span className='text-right tabular-nums'>
+                        {formatLocalCurrencyAmount(
+                          paymentBaseAmount,
+                          paymentCurrencyOptions
+                        )}
+                      </span>
+                    )}
+                    <span className='text-muted-foreground'>
+                      {t('Processing fee ({{percent}}%)', {
+                        percent: paymentFeePercent,
+                      })}
+                    </span>
+                    {calculating ? (
+                      <Skeleton className='h-4 w-20' />
+                    ) : (
+                      <span className='text-right text-orange-600 tabular-nums dark:text-orange-400'>
+                        +{' '}
+                        {formatLocalCurrencyAmount(
+                          paymentFeeAmount,
+                          paymentCurrencyOptions
+                        )}
+                      </span>
+                    )}
+                    <span className='text-muted-foreground border-t pt-2 font-medium'>
+                      {t('Total payment')}
+                    </span>
+                    {calculating ? (
+                      <Skeleton className='mt-2 h-5 w-24' />
+                    ) : (
+                      <span className='border-t pt-1.5 text-right text-base font-semibold tabular-nums'>
+                        {formatLocalCurrencyAmount(
+                          paymentAmount,
+                          paymentCurrencyOptions
+                        )}
                       </span>
                     )}
                   </div>
-                </div>
+                )}
               </div>
 
               <div className='space-y-2.5 sm:space-y-3'>

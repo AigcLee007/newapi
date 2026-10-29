@@ -125,3 +125,43 @@ it.each([
     expect(screen.getByPlaceholderText('Minimum 1')).toBeVisible()
   }
 )
+
+it('shows the Xunhu fee breakdown in the recharge form before confirmation', () => {
+  render(
+    <I18nextProvider i18n={i18n}>
+      <RechargeFormCard
+        topupInfo={{
+          enable_online_topup: true,
+          enable_stripe_topup: false,
+          pay_methods: [{ name: 'WeChat', type: 'wxpay', provider: 'xunhu' }],
+          min_topup: 1,
+          stripe_min_topup: 1,
+          amount_options: [],
+          discount: {},
+        }}
+        presetAmounts={[]}
+        selectedPreset={null}
+        topupAmount={10}
+        onTopupAmountChange={vi.fn()}
+        onSelectPreset={vi.fn()}
+        paymentAmount={10.2}
+        paymentProvider='xunhu'
+        paymentBaseAmount={10}
+        paymentFeeAmount={0.2}
+        paymentFeePercent={2}
+        calculating={false}
+        onPaymentMethodSelect={vi.fn()}
+        paymentLoading={null}
+        redemptionCode=''
+        onRedemptionCodeChange={vi.fn()}
+        onRedeem={vi.fn()}
+        redeeming={false}
+      />
+    </I18nextProvider>
+  )
+
+  expect(screen.getByText('支付金额')).toBeVisible()
+  expect(screen.getByText('手续费（2%）')).toBeVisible()
+  expect(screen.getByText('实付金额')).toBeVisible()
+  expect(screen.getByText(/10\.20/)).toBeVisible()
+})

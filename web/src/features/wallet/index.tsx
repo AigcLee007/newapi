@@ -329,7 +329,7 @@ export function Wallet(props: WalletProps) {
             <div
               className={
                 showSubscriptionPanel
-                  ? 'grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] xl:items-start'
+                  ? 'grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(340px,0.9fr)] xl:items-start'
                   : 'grid gap-4'
               }
             >
@@ -342,6 +342,14 @@ export function Wallet(props: WalletProps) {
                   topupAmount={topupAmount}
                   onTopupAmountChange={handleTopupAmountChange}
                   paymentAmount={paymentAmount}
+                  paymentProvider={
+                    selectedPaymentMethod
+                      ? selectedPaymentMethod.provider
+                      : topupInfo?.pay_methods?.[0]?.provider
+                  }
+                  paymentBaseAmount={paymentBaseAmount}
+                  paymentFeeAmount={paymentFeeAmount}
+                  paymentFeePercent={paymentFeePercent}
                   calculating={calculating}
                   onPaymentMethodSelect={handlePaymentMethodSelect}
                   paymentLoading={paymentLoading}
