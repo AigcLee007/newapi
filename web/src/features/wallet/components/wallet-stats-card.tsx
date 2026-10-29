@@ -16,13 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Activity, BarChart3, WalletCards } from 'lucide-react'
+import { Activity, ArrowDownToLine, BarChart3, WalletCards } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatNumber, formatQuota } from '@/lib/format'
-import { cn } from '@/lib/utils'
 
 import type { UserWalletData } from '../types'
 
@@ -35,25 +35,31 @@ export function WalletStatsCard(props: WalletStatsCardProps) {
   const { t } = useTranslation()
   if (props.loading) {
     return (
-      <div className='grid grid-cols-2 overflow-hidden rounded-lg border sm:grid-cols-3'>
-        {['balance', 'usage', 'requests'].map((key, index) => (
-          <div
-            key={key}
-            className={cn(
-              'min-w-0 px-3 py-3 sm:px-5 sm:py-4',
-              index === 0 &&
-                'col-span-2 border-b bg-success/5 sm:col-span-1 sm:border-b-0',
-              index > 0 && 'border-t sm:border-t-0',
-              index === 1 && 'sm:border-l',
-              index === 2 && 'border-l sm:border-l'
-            )}
-          >
-            <Skeleton className='h-3.5 w-full' />
-            <Skeleton className='mt-2 h-6 w-full sm:h-7' />
-            <Skeleton className='mt-1.5 hidden h-3.5 w-24 md:block' />
+      <section
+        aria-label={t('Wallet')}
+        className='bg-card grid overflow-hidden rounded-lg border lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]'
+      >
+        <div className='bg-foreground flex min-h-40 items-center justify-between gap-4 p-5 sm:p-7'>
+          <div className='min-w-0 flex-1 space-y-3'>
+            <Skeleton className='bg-background/20 h-4 w-32' />
+            <Skeleton className='bg-background/20 h-10 w-48' />
+            <Skeleton className='bg-background/20 h-8 w-32' />
           </div>
-        ))}
-      </div>
+          <WalletCards className='text-background/30 hidden size-14 sm:block' />
+        </div>
+        <div className='grid grid-cols-2 divide-x'>
+          {['usage', 'requests'].map((key) => (
+            <div
+              key={key}
+              className='flex min-w-0 flex-col justify-center px-4 py-5 sm:px-6'
+            >
+              <Skeleton className='h-3.5 w-full' />
+              <Skeleton className='mt-2 h-6 w-full sm:h-7' />
+              <Skeleton className='mt-1.5 hidden h-3.5 w-24 md:block' />
+            </div>
+          ))}
+        </div>
+      </section>
     )
   }
 
@@ -87,42 +93,60 @@ export function WalletStatsCard(props: WalletStatsCardProps) {
     },
   ]
 
-  return (
-    <dl className='bg-card grid grid-cols-2 overflow-hidden rounded-lg border sm:grid-cols-3'>
-      {stats.map((item, index) => (
-        <div
-          key={item.label}
-          className={cn(
-            'min-w-0 px-3 py-3 sm:px-5 sm:py-4',
-            index === 0 &&
-              'col-span-2 border-b bg-success/5 sm:col-span-1 sm:border-b-0',
-            index > 0 && 'border-t sm:border-t-0',
-            index === 1 && 'sm:border-l',
-            index === 2 && 'border-l sm:border-l'
-          )}
-        >
-          <dt className='text-muted-foreground flex min-w-0 items-center gap-1.5 text-[11px] font-medium tracking-wider uppercase sm:gap-2.5 sm:text-xs'>
-            <IconBadge tone={item.tone} size='stat'>
-              <item.icon />
-            </IconBadge>
-            <span className='truncate'>{item.label}</span>
-          </dt>
+  const balance = stats[0]
+  const secondaryStats = stats.slice(1)
 
-          <dd
-            className={cn(
-              'mt-1.5 font-mono font-bold tabular-nums sm:mt-2.5',
-              index === 0
-                ? 'text-foreground text-xl sm:text-2xl'
-                : 'text-foreground text-base sm:text-xl'
-            )}
+  return (
+    <section
+      aria-label={t('Wallet')}
+      className='bg-card grid overflow-hidden rounded-lg border lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]'
+    >
+      <div className='bg-foreground text-background flex min-h-40 items-center justify-between gap-4 p-5 sm:p-7'>
+        <div className='min-w-0'>
+          <dl className='min-w-0'>
+            <dt className='text-background/70 flex items-center gap-2 text-xs font-semibold uppercase'>
+              <WalletCards className='size-4' />
+              {balance.label}
+            </dt>
+            <dd className='mt-4 font-mono text-3xl font-bold tabular-nums sm:text-4xl'>
+              {balance.value}
+            </dd>
+          </dl>
+          <Button
+            variant='secondary'
+            className='mt-5 gap-2'
+            render={<a href='#wallet-add-funds' />}
           >
-            {item.value}
-          </dd>
-          <dd className='text-muted-foreground/60 mt-1 hidden text-xs md:block'>
-            {item.description}
-          </dd>
+            <ArrowDownToLine />
+            {t('Add Funds')}
+          </Button>
         </div>
-      ))}
-    </dl>
+        <div className='text-background/15 hidden sm:block'>
+          <WalletCards className='size-20 lg:size-24' />
+        </div>
+      </div>
+
+      <dl className='grid grid-cols-2 divide-x'>
+        {secondaryStats.map((item) => (
+          <div
+            key={item.label}
+            className='flex min-w-0 flex-col justify-center px-4 py-5 sm:px-6'
+          >
+            <dt className='text-muted-foreground flex min-w-0 items-center gap-2 text-xs font-medium uppercase'>
+              <IconBadge tone={item.tone} size='sm'>
+                <item.icon />
+              </IconBadge>
+              <span className='truncate'>{item.label}</span>
+            </dt>
+            <dd className='text-foreground mt-3 truncate font-mono text-xl font-bold tabular-nums sm:text-2xl'>
+              {item.value}
+            </dd>
+            <dd className='text-muted-foreground mt-1 text-xs'>
+              {item.description}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   )
 }

@@ -37,7 +37,7 @@ beforeEach(async () => {
   })
 })
 
-test('presents current balance before usage and request metrics as definitions', () => {
+test('features the balance and links directly to the recharge form', () => {
   render(
     <I18nextProvider i18n={i18n}>
       <WalletStatsCard
@@ -56,14 +56,25 @@ test('presents current balance before usage and request metrics as definitions',
     </I18nextProvider>
   )
 
+  expect(screen.getByRole('region', { name: 'Wallet' })).toBeVisible()
+  expect(screen.getByText('Current Balance')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Add Funds' })).toHaveAttribute(
+    'href',
+    '#wallet-add-funds'
+  )
   expect(screen.getAllByRole('term').map((term) => term.textContent)).toEqual([
     'Current Balance',
     'Total Usage',
     'API Requests',
   ])
-  const terms = screen.getAllByRole('term')
-  expect(screen.getAllByRole('definition')).toHaveLength(terms.length * 2)
-  for (const term of terms) {
+  const balanceTerm = screen.getAllByRole('term')[0]
+  expect(
+    within(balanceTerm.parentElement as HTMLElement).getByRole('definition')
+  ).toHaveTextContent('$100')
+
+  const secondaryTerms = screen.getAllByRole('term').slice(1)
+  expect(screen.getAllByRole('definition')).toHaveLength(5)
+  for (const term of secondaryTerms) {
     expect(
       within(term.parentElement as HTMLElement).getAllByRole('definition')
     ).toHaveLength(2)

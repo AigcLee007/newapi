@@ -4656,6 +4656,7 @@
     "Payment return URL": "Payment return URL",
     "Payment return URL is empty. Create the product without a SuccessURL redirect?": "Payment return URL is empty. Create the product without a SuccessURL redirect?",
     "Payment success redirect URL is not in the trusted domain list": "Payment success redirect URL is not in the trusted domain list",
+    "Payment summary": "Payment summary",
     "Payment type key": "Payment type key",
     "Payment type key is required": "Payment type key is required",
     "Payment, redemption codes, subscription plans, and invitation rewards are locked until the root administrator confirms the compliance terms.": "Payment, redemption codes, subscription plans, and invitation rewards are locked until the root administrator confirms the compliance terms.",

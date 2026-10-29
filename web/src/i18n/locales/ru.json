@@ -4656,6 +4656,7 @@
     "Payment return URL": "URL возврата после оплаты",
     "Payment return URL is empty. Create the product without a SuccessURL redirect?": "URL возврата платежа пуст. Создать продукт без перенаправления SuccessURL?",
     "Payment success redirect URL is not in the trusted domain list": "URL перенаправления после успешной оплаты не входит в список доверенных доменов",
+    "Payment summary": "Сводка платежа",
     "Payment type key": "Ключ типа оплаты",
     "Payment type key is required": "Ключ типа оплаты обязателен",
     "Payment, redemption codes, subscription plans, and invitation rewards are locked until the root administrator confirms the compliance terms.": "Платежи, коды пополнения, планы подписки и награды за приглашения заблокированы, пока root-администратор не подтвердит условия соответствия.",

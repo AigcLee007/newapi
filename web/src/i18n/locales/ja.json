@@ -4656,6 +4656,7 @@
     "Payment return URL": "決済完了後のリダイレクトURL",
     "Payment return URL is empty. Create the product without a SuccessURL redirect?": "支払い戻り URL が空です。SuccessURL リダイレクトなしで商品を作成しますか？",
     "Payment success redirect URL is not in the trusted domain list": "支払い完了時のリダイレクト URL が信頼済みドメインの一覧にありません",
+    "Payment summary": "お支払いの概要",
     "Payment type key": "支払いタイプキー",
     "Payment type key is required": "支払いタイプキーは必須です",
     "Payment, redemption codes, subscription plans, and invitation rewards are locked until the root administrator confirms the compliance terms.": "ルート管理者がコンプライアンス条件を確認するまで、支払い、引換コード、サブスクリプションプラン、招待報酬はロックされます。",

@@ -4656,6 +4656,7 @@
     "Payment return URL": "URL de retour de paiement",
     "Payment return URL is empty. Create the product without a SuccessURL redirect?": "L’URL de retour de paiement est vide. Créer le produit sans redirection SuccessURL ?",
     "Payment success redirect URL is not in the trusted domain list": "L'URL de redirection après paiement réussi n'est pas dans la liste des domaines de confiance",
+    "Payment summary": "Récapitulatif du paiement",
     "Payment type key": "Clé de type de paiement",
     "Payment type key is required": "La clé de type de paiement est requise",
     "Payment, redemption codes, subscription plans, and invitation rewards are locked until the root administrator confirms the compliance terms.": "Les paiements, codes de兑换, forfaits d’abonnement et récompenses d’invitation sont verrouillés jusqu’à ce que l’administrateur racine confirme les conditions de conformité.",
