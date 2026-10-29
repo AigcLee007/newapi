@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { createInstance } from 'i18next'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
 import { beforeEach, expect, test } from 'vitest'
@@ -61,5 +61,11 @@ test('presents current balance before usage and request metrics as definitions',
     'Total Usage',
     'API Requests',
   ])
-  expect(screen.getAllByRole('definition')).toHaveLength(3)
+  const terms = screen.getAllByRole('term')
+  expect(screen.getAllByRole('definition')).toHaveLength(terms.length * 2)
+  for (const term of terms) {
+    expect(
+      within(term.parentElement as HTMLElement).getAllByRole('definition')
+    ).toHaveLength(2)
+  }
 })

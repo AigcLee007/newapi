@@ -101,14 +101,12 @@ export function WalletStatsCard(props: WalletStatsCardProps) {
             index === 2 && 'border-l sm:border-l'
           )}
         >
-          <div className='flex items-center gap-1.5 sm:gap-2.5'>
+          <dt className='text-muted-foreground flex min-w-0 items-center gap-1.5 text-[11px] font-medium tracking-wider uppercase sm:gap-2.5 sm:text-xs'>
             <IconBadge tone={item.tone} size='stat'>
               <item.icon />
             </IconBadge>
-            <dt className='text-muted-foreground truncate text-[11px] font-medium tracking-wider uppercase sm:text-xs'>
-              {item.label}
-            </dt>
-          </div>
+            <span className='truncate'>{item.label}</span>
+          </dt>
 
           <dd
             className={cn(
@@ -120,9 +118,9 @@ export function WalletStatsCard(props: WalletStatsCardProps) {
           >
             {item.value}
           </dd>
-          <div className='text-muted-foreground/60 mt-1 hidden text-xs md:block'>
+          <dd className='text-muted-foreground/60 mt-1 hidden text-xs md:block'>
             {item.description}
-          </div>
+          </dd>
         </div>
       ))}
     </dl>

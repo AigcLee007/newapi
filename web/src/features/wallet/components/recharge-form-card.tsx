@@ -264,6 +264,14 @@ export function RechargeFormCard({
                         discount,
                         usdExchangeRate
                       )
+                      const displayedPrice = hasXunhuFeeDetails
+                        ? Number(
+                            (
+                              actualPrice *
+                              (1 + paymentFeePercent / 100)
+                            ).toFixed(2)
+                          )
+                        : actualPrice
                       return (
                         <Button
                           key={preset.value}
@@ -292,7 +300,7 @@ export function RechargeFormCard({
                                 t={t}
                                 i18nKey='Pay {{amount}} <savings>• Save {{saved}}</savings>'
                                 values={{
-                                  amount: formatCurrency(actualPrice),
+                                  amount: formatCurrency(displayedPrice),
                                   saved: formatCurrency(savedAmount),
                                 }}
                                 components={{
@@ -301,7 +309,7 @@ export function RechargeFormCard({
                               />
                             ) : (
                               t('Pay {{amount}}', {
-                                amount: formatCurrency(actualPrice),
+                                amount: formatCurrency(displayedPrice),
                               })
                             )}
                           </div>
