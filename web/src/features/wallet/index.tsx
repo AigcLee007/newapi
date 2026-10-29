@@ -150,7 +150,11 @@ export function Wallet(props: WalletProps) {
 
       // Calculate initial payment amount with default payment type
       const defaultPaymentType = getDefaultPaymentType(topupInfo)
-      calculatePaymentAmount(minTopup, defaultPaymentType)
+      calculatePaymentAmount(
+        minTopup,
+        defaultPaymentType,
+        topupInfo.pay_methods?.[0]?.provider
+      )
     }
   }, [topupInfo, calculatePaymentAmount])
 
@@ -159,18 +163,33 @@ export function Wallet(props: WalletProps) {
     return selectedPaymentMethod?.type || getDefaultPaymentType(topupInfo)
   }, [selectedPaymentMethod, topupInfo])
 
+  const getCurrentPaymentProvider = useCallback(() => {
+    if (selectedPaymentMethod) {
+      return selectedPaymentMethod.provider
+    }
+    return topupInfo?.pay_methods?.[0]?.provider
+  }, [selectedPaymentMethod, topupInfo])
+
   // Handle preset selection
   const handleSelectPreset = (preset: PresetAmount) => {
     setTopupAmount(preset.value)
     setSelectedPreset(preset.value)
-    calculatePaymentAmount(preset.value, getCurrentPaymentType())
+    calculatePaymentAmount(
+      preset.value,
+      getCurrentPaymentType(),
+      getCurrentPaymentProvider()
+    )
   }
 
   // Handle topup amount change
   const handleTopupAmountChange = (amount: number) => {
     setTopupAmount(amount)
     setSelectedPreset(null)
-    calculatePaymentAmount(amount, getCurrentPaymentType())
+    calculatePaymentAmount(
+      amount,
+      getCurrentPaymentType(),
+      getCurrentPaymentProvider()
+    )
   }
 
   // Handle payment method selection
@@ -187,7 +206,7 @@ export function Wallet(props: WalletProps) {
       }
 
       // Calculate payment amount and show confirmation dialog
-      await calculatePaymentAmount(topupAmount, method.type)
+      await calculatePaymentAmount(topupAmount, method.type, method.provider)
       setConfirmDialogOpen(true)
     } finally {
       setPaymentLoading(null)
