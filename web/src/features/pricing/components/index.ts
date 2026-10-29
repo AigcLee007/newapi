@@ -30,3 +30,4 @@ export {
 } from './model-details'
 export { PricingTable } from './pricing-table'
 export { GroupPricingPage, GroupPricingContent } from './group-pricing-page'
+export { GroupPricingLink } from './group-pricing-link'

@@ -31,6 +31,7 @@ import {
   useSystemConfigStore,
 } from '@/stores/system-config-store'
 
+import { GroupPricingLink } from '../components/group-pricing-link'
 import { GroupPricingContent } from '../components/group-pricing-page'
 import {
   buildGroupPricingSections,
@@ -168,6 +169,16 @@ describe('group pricing sections', () => {
 })
 
 describe('group pricing page content', () => {
+  it('exposes a visible link from the model marketplace to group pricing', async () => {
+    await renderWithRouter(<GroupPricingLink />)
+
+    const link = screen.getByRole('button', {
+      name: 'Complete group pricing',
+    })
+    expect(link).toBeVisible()
+    expect(link).toHaveAttribute('href', '/pricing/groups')
+  })
+
   it('shows each group multiplier with customer and USD reference prices', async () => {
     const model = pricingModel('gpt-fast', ['default'], 'OpenAI', {
       model_ratio: 0.5,
