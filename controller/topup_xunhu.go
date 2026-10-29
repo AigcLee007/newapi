@@ -17,6 +17,15 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const xunhuFeePercent int64 = 2
+
+func xunhuFeeIncludedAmount(amount decimal.Decimal) decimal.Decimal {
+	return amount.
+		Mul(decimal.NewFromInt(100 + xunhuFeePercent)).
+		Div(decimal.NewFromInt(100)).
+		Round(2)
+}
+
 func RequestXunhuPay(c *gin.Context) {
 	var req EpayRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -42,7 +51,7 @@ func RequestXunhuPay(c *gin.Context) {
 		paymentError(c, common.NewMessage("Failed to get the user group"))
 		return
 	}
-	payAmount := decimal.NewFromFloat(getPayMoney(req.Amount, group)).Round(2)
+	payAmount := xunhuFeeIncludedAmount(decimal.NewFromFloat(getPayMoney(req.Amount, group)).Round(2))
 	if payAmount.LessThan(decimal.NewFromFloat(0.01)) {
 		paymentError(c, common.NewMessage("Payment amount is too low"))
 		return

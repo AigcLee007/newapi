@@ -22,6 +22,33 @@ import { PAYMENT_TYPES } from '../constants'
 import { requestPaymentAmount } from './use-payment'
 
 describe('payment amount routing', () => {
+  test('requests the Xunhu surcharge in the payment amount preview', async () => {
+    const requests: {
+      amount: number
+      provider?: string
+      payment_method?: string
+    }[] = []
+    const amount = await requestPaymentAmount(
+      10,
+      'wxpay',
+      {
+        regular: async (request) => {
+          requests.push(request)
+          return { success: true, data: '10.20' }
+        },
+        stripe: async () => ({ success: true, data: '0' }),
+        waffo: async () => ({ success: true, data: '0' }),
+        waffoPancake: async () => ({ success: true, data: '0' }),
+      },
+      'xunhu'
+    )
+
+    expect(amount).toBe(10.2)
+    expect(requests).toEqual([
+      { amount: 10, provider: 'xunhu', payment_method: 'wxpay' },
+    ])
+  })
+
   test('uses the dedicated Waffo amount calculator', async () => {
     const calls: string[] = []
     const amount = await requestPaymentAmount(120, PAYMENT_TYPES.WAFFO, {

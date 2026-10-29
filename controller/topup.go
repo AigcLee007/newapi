@@ -142,7 +142,9 @@ type EpayRequest struct {
 }
 
 type AmountRequest struct {
-	Amount int64 `json:"amount"`
+	Amount        int64  `json:"amount"`
+	PaymentMethod string `json:"payment_method,omitempty"`
+	Provider      string `json:"provider,omitempty"`
 }
 
 func GetEpayClient() *epay.Client {
@@ -529,6 +531,13 @@ func RequestAmount(c *gin.Context) {
 		return
 	}
 	payMoney := getPayMoney(req.Amount, group)
+	if req.Provider == model.PaymentProviderXunhu {
+		if !isXunhuTopUpEnabled() || !operation_setting.ContainsPayMethodForProvider(req.PaymentMethod, model.PaymentProviderXunhu) {
+			paymentError(c, common.NewMessage("Payment method does not exist"))
+			return
+		}
+		payMoney = xunhuFeeIncludedAmount(decimal.NewFromFloat(payMoney).Round(2)).InexactFloat64()
+	}
 	if payMoney <= 0.01 {
 		paymentError(c, common.NewMessage("Payment amount is too low"))
 		return
