@@ -16,15 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Link } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ErrorState } from '@/components/error-state'
 import { PublicLayout } from '@/components/layout'
 import { PageTransition } from '@/components/page-transition'
-import { Button } from '@/components/ui/button'
 
 import { usePricingData } from '../hooks/use-pricing-data'
 import { buildGroupPricingSections } from '../lib/group-pricing'
@@ -56,37 +53,30 @@ export function GroupPricingContent(props: {
   const visibleGroupCount = sections.length
 
   return (
-    <PageTransition className='mx-auto w-full max-w-[1800px] px-4 pt-16 pb-10 sm:px-6 sm:pt-20 xl:px-8'>
-      <header className='mb-6 border-b pb-5'>
-        <Button
-          variant='ghost'
-          size='sm'
-          className='mb-4 -ml-2'
-          render={<Link to='/pricing' />}
-        >
-          <ArrowLeft aria-hidden='true' />
-          {t('Model Square')}
-        </Button>
-        <div className='flex flex-wrap items-end justify-between gap-4'>
-          <div>
-            <h1 className='text-2xl font-semibold'>
+    <PageTransition className='mx-auto w-full max-w-[1800px] px-4 pt-20 pb-8 sm:px-6 sm:pt-20 xl:px-8'>
+      <header className='mb-4 border-b pb-3'>
+        <div className='flex flex-wrap items-center justify-between gap-x-6 gap-y-3'>
+          <div className='min-w-0'>
+            <h1 className='text-xl font-semibold sm:text-2xl'>
               {t('Complete group pricing')}
             </h1>
-            <p className='text-muted-foreground mt-1 text-sm'>
+            <p className='text-muted-foreground mt-0.5 text-sm'>
               {t('Browse every model price available in each group.')}
             </p>
           </div>
-          <p className='text-muted-foreground text-sm'>
-            {t('{{count}} groups', { count: visibleGroupCount })}
-          </p>
+          <div className='flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-end'>
+            <SearchBar
+              value={search}
+              onChange={setSearch}
+              onClear={() => setSearch('')}
+              placeholder={t('Search models')}
+              className='w-full max-w-[320px] sm:w-[280px]'
+            />
+            <p className='text-muted-foreground shrink-0 text-sm'>
+              {t('{{count}} groups', { count: visibleGroupCount })}
+            </p>
+          </div>
         </div>
-        <SearchBar
-          value={search}
-          onChange={setSearch}
-          onClear={() => setSearch('')}
-          placeholder={t('Search models')}
-          className='mt-4 max-w-lg'
-        />
       </header>
 
       {sections.length === 0 ? (
@@ -96,7 +86,7 @@ export function GroupPricingContent(props: {
           onClearFilters={() => setSearch('')}
         />
       ) : (
-        <div className='space-y-6'>
+        <div className='space-y-4'>
           {sections.map((section) => (
             <GroupPricingTable
               key={section.name}
@@ -121,7 +111,7 @@ export function GroupPricingPage() {
   if (pricing.isLoading) {
     return (
       <PublicLayout showMainContainer={false}>
-        <div className='mx-auto w-full max-w-[1800px] px-4 pt-16 sm:px-6 sm:pt-20 xl:px-8'>
+        <div className='mx-auto w-full max-w-[1800px] px-4 pt-20 sm:px-6 sm:pt-20 xl:px-8'>
           <LoadingSkeleton viewMode='table' />
         </div>
       </PublicLayout>

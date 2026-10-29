@@ -186,10 +186,14 @@ describe('group pricing page content', () => {
       />
     )
 
-    const table = screen.getByRole('table')
-    expect(
-      screen.getByRole('region', { name: 'Pricing for group default' })
-    ).toHaveAttribute('tabindex', '0')
+    const region = screen.getByRole('region', {
+      name: 'Pricing for group default',
+    })
+    expect(region).toHaveAttribute('tabindex', '0')
+    expect(region).toHaveClass('overflow-x-auto')
+    const table = within(region).getByRole('table', {
+      name: 'Pricing for group default',
+    })
     expect(
       screen.getByRole('heading', { name: 'Complete group pricing' })
     ).toBeVisible()

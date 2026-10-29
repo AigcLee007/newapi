@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next'
 
 import { GroupBadge } from '@/components/group-badge'
 import { getCurrencyLabel } from '@/lib/currency'
+import { cn } from '@/lib/utils'
 
 import { DEFAULT_TOKEN_UNIT } from '../constants'
 import { isDynamicPricingModel } from '../lib/dynamic-price'
@@ -73,20 +74,29 @@ export function GroupPricingTable(props: {
   return (
     <section
       aria-labelledby={`group-${props.group}`}
-      className='overflow-hidden rounded-lg border'
+      className='bg-card overflow-hidden rounded-md border border-emerald-700/35'
     >
-      <header className='bg-muted/40 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3'>
+      <header className='bg-muted/40 flex flex-wrap items-center gap-2 border-b px-4 py-2.5'>
         <div className='min-w-0'>
-          <h2 id={`group-${props.group}`} className='font-medium'>
-            {props.group}
+          <h2
+            id={`group-${props.group}`}
+            aria-label={props.group}
+            className='flex min-w-0'
+          >
+            <GroupBadge
+              group={props.group}
+              ratio={props.ratio}
+              showDot={false}
+              copyable={false}
+              size='sm'
+            />
           </h2>
           {props.description && (
-            <p className='text-muted-foreground mt-0.5 text-sm'>
+            <p className='text-muted-foreground mt-1 text-xs'>
               {props.description}
             </p>
           )}
         </div>
-        <GroupBadge group={props.group} ratio={props.ratio} />
       </header>
       <div
         role='region'
@@ -94,19 +104,22 @@ export function GroupPricingTable(props: {
         tabIndex={0}
         className='focus-visible:outline-ring overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-[-2px]'
       >
-        <table className='w-full min-w-[880px] border-collapse text-sm'>
+        <table className='w-full min-w-[1024px] border-collapse text-sm'>
+          <caption className='sr-only'>
+            {t('Pricing for group {{group}}', { group: props.group })}
+          </caption>
           <thead>
-            <tr className='border-b'>
+            <tr className='bg-muted/20 border-b'>
               <th
                 rowSpan={2}
                 scope='col'
-                className='min-w-[220px] px-4 py-2 text-left font-medium'
+                className='bg-card border-border/70 sticky left-0 z-20 min-w-[280px] border-r px-4 py-2.5 text-left font-medium md:static md:z-auto'
               >
                 {t('Model')}
               </th>
               <th
                 colSpan={columnCount}
-                className='px-3 py-2 text-center font-medium'
+                className='border-b border-emerald-700/20 bg-emerald-500/10 px-3 py-2 text-center font-semibold text-emerald-700 dark:text-emerald-300'
               >
                 {t('Customer price')} ·{' '}
                 {currencyLabel === 'Tokens' ? 'USD' : currencyLabel} /{' '}
@@ -114,14 +127,14 @@ export function GroupPricingTable(props: {
               </th>
               <th
                 colSpan={columnCount}
-                className='px-3 py-2 text-center font-medium'
+                className='border-border/70 border-b border-l px-3 py-2 text-center font-medium'
               >
                 {t('USD reference')} · USD / {t('1M token')}
               </th>
               <th
                 rowSpan={2}
                 scope='col'
-                className='min-w-24 px-3 py-2 text-right font-medium'
+                className='border-border/70 min-w-28 border-l px-3 py-2 text-right font-medium'
               >
                 {t('Discount ratio')}
               </th>
@@ -131,16 +144,19 @@ export function GroupPricingTable(props: {
                 <th
                   key={`customer-${column.type}`}
                   scope='col'
-                  className='min-w-24 px-3 py-2 text-right text-xs font-normal'
+                  className='min-w-28 bg-emerald-500/10 px-3 py-2 text-center text-xs font-normal'
                 >
                   {t(column.label)}
                 </th>
               ))}
-              {priceColumns.map((column) => (
+              {priceColumns.map((column, index) => (
                 <th
                   key={`usd-${column.type}`}
                   scope='col'
-                  className='min-w-24 px-3 py-2 text-right text-xs font-normal'
+                  className={cn(
+                    'min-w-28 px-3 py-2 text-center text-xs font-normal',
+                    index === 0 && 'border-l border-border/70'
+                  )}
                 >
                   {t(column.label)}
                 </th>
@@ -151,10 +167,13 @@ export function GroupPricingTable(props: {
             {props.models.map((model) => (
               <tr
                 key={`${props.group}-${model.id}-${model.model_name}`}
-                className='border-b last:border-b-0'
+                className='border-border/70 border-b last:border-b-0'
               >
-                <th scope='row' className='px-4 py-3 text-left font-medium'>
-                  <span className='block max-w-[320px] break-words'>
+                <th
+                  scope='row'
+                  className='bg-card border-border/70 sticky left-0 z-10 border-r px-4 py-2.5 text-left align-middle font-medium md:static md:z-auto'
+                >
+                  <span className='block max-w-[360px] font-mono text-[13px] font-semibold break-words'>
                     {model.model_name}
                   </span>
                   {model.vendor_name && (
@@ -162,12 +181,17 @@ export function GroupPricingTable(props: {
                       {model.vendor_name}
                     </span>
                   )}
+                  {model.description && (
+                    <span className='text-muted-foreground mt-1 block max-w-[420px] text-xs leading-5 font-normal break-words'>
+                      {model.description}
+                    </span>
+                  )}
                 </th>
                 {isDynamicPricingModel(model) ? (
                   <>
                     <td
                       colSpan={columnCount}
-                      className='bg-emerald-500/5 px-3 py-3 text-center'
+                      className='bg-emerald-500/10 px-3 py-2.5 text-center font-mono text-xs tabular-nums'
                     >
                       <ModelPriceCell
                         model={model}
@@ -180,7 +204,10 @@ export function GroupPricingTable(props: {
                         showExpression={false}
                       />
                     </td>
-                    <td colSpan={columnCount} className='px-3 py-3 text-center'>
+                    <td
+                      colSpan={columnCount}
+                      className='border-border/70 border-l px-3 py-2.5 text-center font-mono text-xs tabular-nums'
+                    >
                       <ModelPriceCell
                         model={{
                           ...model,
@@ -204,7 +231,7 @@ export function GroupPricingTable(props: {
                     {priceColumns.map((column) => (
                       <td
                         key={`customer-${column.type}`}
-                        className='bg-emerald-500/5 px-3 py-3 text-right font-mono tabular-nums'
+                        className='bg-emerald-500/10 px-3 py-2.5 text-right font-mono text-xs font-semibold tabular-nums'
                       >
                         <GroupPriceValue
                           model={model}
@@ -217,10 +244,13 @@ export function GroupPricingTable(props: {
                         />
                       </td>
                     ))}
-                    {priceColumns.map((column) => (
+                    {priceColumns.map((column, index) => (
                       <td
                         key={`usd-${column.type}`}
-                        className='px-3 py-3 text-right font-mono tabular-nums'
+                        className={cn(
+                          'px-3 py-2.5 text-right font-mono text-xs tabular-nums',
+                          index === 0 && 'border-l border-border/70'
+                        )}
                       >
                         <GroupPriceValue
                           model={model}
@@ -235,7 +265,7 @@ export function GroupPricingTable(props: {
                     ))}
                   </>
                 )}
-                <td className='px-3 py-3 text-right font-mono tabular-nums'>
+                <td className='border-border/70 border-l px-3 py-2.5 text-right font-mono text-xs font-medium tabular-nums'>
                   {props.ratio}x
                 </td>
               </tr>
