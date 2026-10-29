@@ -38,6 +38,11 @@ export type AmountResponse = ApiResponse<string>
 export type PaymentResponse = ApiResponse<Record<string, unknown>> & {
   url?: string
 }
+export interface XunhuCheckout {
+  url?: string
+  url_qrcode?: string
+}
+export type XunhuPaymentResponse = ApiResponse<XunhuCheckout>
 export type StripePaymentResponse = ApiResponse<{ pay_link: string }>
 export type AffiliateCodeResponse = ApiResponse<string>
 export type AffiliateTransferResponse = ApiResponse
@@ -94,6 +99,10 @@ export interface PaymentMethod {
   name: string
   /** Payment method type identifier */
   type: string
+  /** Gateway for custom payment entries; omitted legacy entries use Epay. */
+  provider?: string
+  /** Optional Xunhu request type, such as WAP for WeChat H5. */
+  xunhu_type?: string
   /** Legacy optional color for UI display */
   color?: string
   /** Minimum topup amount for this payment method */
@@ -122,6 +131,8 @@ export interface WaffoPayMethod {
 export interface TopupInfo {
   /** Whether online topup is enabled */
   enable_online_topup: boolean
+  /** Whether Xunhu wallet top-up is enabled. */
+  enable_xunhu_topup?: boolean
   /** Whether Stripe topup is enabled */
   enable_stripe_topup: boolean
   /** Available payment methods */

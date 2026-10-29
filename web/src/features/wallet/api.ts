@@ -28,6 +28,7 @@ import type {
   RedemptionResponse,
   AmountResponse,
   PaymentResponse,
+  XunhuPaymentResponse,
   StripePaymentResponse,
   AffiliateCodeResponse,
   AffiliateTransferResponse,
@@ -119,6 +120,18 @@ export async function requestPayment(
     ...res.data,
     url: res.data.url || (res as unknown as { url?: string }).url,
   }
+}
+
+/**
+ * Request Xunhu wallet payment details
+ */
+export async function requestXunhuPayment(
+  request: PaymentRequest
+): Promise<XunhuPaymentResponse> {
+  const res = await api.post('/api/user/xunhu/pay', request, {
+    skipBusinessError: true,
+  } as Record<string, unknown>)
+  return res.data
 }
 
 /**

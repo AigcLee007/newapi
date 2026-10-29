@@ -123,6 +123,10 @@ func GetOptions(c *gin.Context) {
 		Key:   "CompletionRatioMeta",
 		Value: buildCompletionRatioMetaValue(optionValues),
 	})
+	options = append(options, &model.Option{
+		Key:   "payment_setting.xunhu_app_secret_configured",
+		Value: strconv.FormatBool(operation_setting.GetXunhuAppSecret() != ""),
+	})
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",

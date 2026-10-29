@@ -5,6 +5,9 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/config"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -138,6 +141,86 @@ func TestUpdatePendingTopUpStatus_RejectsMismatchedPaymentProvider(t *testing.T)
 			assert.Equal(t, common.TopUpStatusPending, getTopUpStatusForPaymentGuardTest(t, tc.tradeNo))
 		})
 	}
+}
+
+func TestRechargeXunhu_RejectsMismatchedAmount(t *testing.T) {
+	truncateTables(t)
+	insertUserForPaymentGuardTest(t, 202, 0)
+	require.NoError(t, (&TopUp{
+		UserId:          202,
+		Amount:          2,
+		Money:           1.50,
+		TradeNo:         "xunhu-amount-mismatch",
+		PaymentMethod:   "alipay",
+		PaymentProvider: PaymentProviderXunhu,
+		CreateTime:      time.Now().Unix(),
+		Status:          common.TopUpStatusPending,
+	}).Insert())
+	actualAmount, err := decimal.NewFromString("1.49")
+	require.NoError(t, err)
+
+	_, err = RechargeXunhu("xunhu-amount-mismatch", actualAmount, "198.51.100.2")
+	require.ErrorIs(t, err, ErrPaymentAmountMismatch)
+	assert.Equal(t, common.TopUpStatusPending, getTopUpStatusForPaymentGuardTest(t, "xunhu-amount-mismatch"))
+	assert.Zero(t, getUserQuotaForPaymentGuardTest(t, 202))
+}
+
+func TestRechargeXunhuCreditsMatchingPaymentOnlyOnce(t *testing.T) {
+	truncateTables(t)
+	insertUserForPaymentGuardTest(t, 203, 0)
+	require.NoError(t, (&TopUp{
+		UserId:          203,
+		Amount:          2,
+		Money:           1.50,
+		TradeNo:         "xunhu-success-once",
+		PaymentMethod:   "alipay",
+		PaymentProvider: PaymentProviderXunhu,
+		CreateTime:      time.Now().Unix(),
+		Status:          common.TopUpStatusPending,
+	}).Insert())
+	actualAmount, err := decimal.NewFromString("1.50")
+	require.NoError(t, err)
+
+	alreadyDone, err := RechargeXunhu("xunhu-success-once", actualAmount, "198.51.100.3")
+	require.NoError(t, err)
+	assert.False(t, alreadyDone)
+	assert.Equal(t, common.TopUpStatusSuccess, getTopUpStatusForPaymentGuardTest(t, "xunhu-success-once"))
+	assert.Equal(t, int(common.QuotaPerUnit*2), getUserQuotaForPaymentGuardTest(t, 203))
+	wrongAmount, err := decimal.NewFromString("1.51")
+	require.NoError(t, err)
+	_, err = RechargeXunhu("xunhu-success-once", wrongAmount, "198.51.100.3")
+	require.ErrorIs(t, err, ErrPaymentAmountMismatch)
+
+	alreadyDone, err = RechargeXunhu("xunhu-success-once", actualAmount, "198.51.100.3")
+	require.NoError(t, err)
+	assert.True(t, alreadyDone)
+	assert.Equal(t, int(common.QuotaPerUnit*2), getUserQuotaForPaymentGuardTest(t, 203))
+}
+
+func TestRechargeXunhuRejectsEpayOrder(t *testing.T) {
+	truncateTables(t)
+	insertUserForPaymentGuardTest(t, 204, 0)
+	insertTopUpForPaymentGuardTest(t, "xunhu-provider-mismatch", 204, PaymentProviderEpay)
+	actualAmount, err := decimal.NewFromString("9.99")
+	require.NoError(t, err)
+
+	_, err = RechargeXunhu("xunhu-provider-mismatch", actualAmount, "198.51.100.4")
+	require.ErrorIs(t, err, ErrPaymentMethodMismatch)
+	assert.Equal(t, common.TopUpStatusPending, getTopUpStatusForPaymentGuardTest(t, "xunhu-provider-mismatch"))
+	assert.Zero(t, getUserQuotaForPaymentGuardTest(t, 204))
+}
+
+func TestXunhuAppSecretUsesEnvironmentConfiguration(t *testing.T) {
+	t.Setenv(operation_setting.XunhuAppSecretEnv, " environment-secret ")
+	assert.Equal(t, "environment-secret", operation_setting.GetXunhuAppSecret())
+
+	options, err := config.ConfigToMap(operation_setting.GetPaymentSetting())
+	require.NoError(t, err)
+	assert.NotContains(t, options, "xunhu_app_secret")
+	assert.Error(t, UpdateOption("payment_setting.xunhu_app_secret", "database-secret"))
+	assert.Error(t, UpdateOptionsBulk(map[string]string{
+		"payment_setting.xunhu_app_secret": "database-secret",
+	}))
 }
 
 func TestCompleteSubscriptionOrder_RejectsMismatchedPaymentProvider(t *testing.T) {

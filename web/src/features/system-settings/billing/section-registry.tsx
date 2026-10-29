@@ -137,6 +137,7 @@ const BILLING_SECTIONS = [
           PayAddress: settings.PayAddress,
           EpayId: settings.EpayId,
           EpayKey: settings.EpayKey,
+          XunhuAppId: settings['payment_setting.xunhu_app_id'],
           Price: settings.Price,
           MinTopUp: settings.MinTopUp,
           CustomCallbackAddress: settings.CustomCallbackAddress,
@@ -154,6 +155,9 @@ const BILLING_SECTIONS = [
           CreemTestMode: settings.CreemTestMode,
           CreemProducts: settings.CreemProducts,
         }}
+        xunhuSecretConfigured={
+          settings['payment_setting.xunhu_app_secret_configured'] === 'true'
+        }
         waffoDefaultValues={{
           WaffoEnabled: settings.WaffoEnabled ?? false,
           WaffoApiKey: settings.WaffoApiKey ?? '',

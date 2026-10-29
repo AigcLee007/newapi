@@ -113,6 +113,7 @@ export function isWaffoPancakePayment(paymentType: string): boolean {
 
 export interface PaymentProcessors {
   regular: (topupAmount: number, paymentType: string) => Promise<boolean>
+  xunhu: (topupAmount: number, paymentType: string) => Promise<boolean>
   waffo: (topupAmount: number, payMethodIndex: number) => Promise<boolean>
   waffoPancake: (topupAmount: number) => Promise<boolean>
 }
@@ -132,6 +133,10 @@ export async function dispatchSelectedPayment(
 
   if (isWaffoPancakePayment(paymentMethod.type)) {
     return processors.waffoPancake(topupAmount)
+  }
+
+  if (paymentMethod.provider === 'xunhu') {
+    return processors.xunhu(topupAmount, paymentMethod.type)
   }
 
   return processors.regular(topupAmount, paymentMethod.type)
@@ -173,7 +178,7 @@ export function getMinTopupAmount(topupInfo: TopupInfo | null): number {
     return DEFAULT_MIN_TOPUP
   }
 
-  if (topupInfo.enable_online_topup) {
+  if (topupInfo.enable_online_topup || topupInfo.enable_xunhu_topup) {
     return topupInfo.min_topup
   }
 

@@ -28,6 +28,7 @@ import {
   calculateWaffoAmount,
   calculateWaffoPancakeAmount,
   requestPayment,
+  requestXunhuPayment,
   requestStripePayment,
   isApiSuccess,
 } from '../api'
@@ -37,7 +38,7 @@ import {
   isWaffoPancakePayment,
   submitPaymentForm,
 } from '../lib'
-import type { AmountRequest, AmountResponse } from '../types'
+import type { AmountRequest, AmountResponse, XunhuCheckout } from '../types'
 
 // ============================================================================
 // Payment Hook
@@ -85,6 +86,7 @@ export function usePayment() {
   const [amount, setAmount] = useState<number>(0)
   const [calculating, setCalculating] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [xunhuCheckout, setXunhuCheckout] = useState<XunhuCheckout | null>(null)
 
   // Calculate payment amount
   const calculatePaymentAmount = useCallback(
@@ -159,12 +161,42 @@ export function usePayment() {
     []
   )
 
+  const processXunhuPayment = useCallback(
+    async (topupAmount: number, paymentType: string) => {
+      try {
+        setProcessing(true)
+        const response = await requestXunhuPayment({
+          amount: Math.floor(topupAmount),
+          payment_method: paymentType,
+        })
+        if (
+          !isApiSuccess(response) ||
+          (!response.data?.url && !response.data?.url_qrcode)
+        ) {
+          handleServerError(response, i18next.t('Payment request failed'))
+          return false
+        }
+        setXunhuCheckout(response.data)
+        return true
+      } catch (error) {
+        handleServerError(error, i18next.t('Payment request failed'))
+        return false
+      } finally {
+        setProcessing(false)
+      }
+    },
+    []
+  )
+
   return {
     amount,
     calculating,
     processing,
     calculatePaymentAmount,
     processPayment,
+    processXunhuPayment,
+    xunhuCheckout,
+    clearXunhuCheckout: () => setXunhuCheckout(null),
     setAmount,
   }
 }

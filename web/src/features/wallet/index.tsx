@@ -29,6 +29,7 @@ import { BillingHistoryDialog } from './components/dialogs/billing-history-dialo
 import { CreemConfirmDialog } from './components/dialogs/creem-confirm-dialog'
 import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialog'
 import { TransferDialog } from './components/dialogs/transfer-dialog'
+import { XunhuCheckoutDialog } from './components/dialogs/xunhu-checkout-dialog'
 import { RechargeFormCard } from './components/recharge-form-card'
 import { SubscriptionPlansCard } from './components/subscription-plans-card'
 import { WalletStatsCard } from './components/wallet-stats-card'
@@ -96,6 +97,9 @@ export function Wallet(props: WalletProps) {
     processing,
     calculatePaymentAmount,
     processPayment,
+    processXunhuPayment,
+    xunhuCheckout,
+    clearXunhuCheckout,
   } = usePayment()
   const {
     affiliateLink,
@@ -173,7 +177,7 @@ export function Wallet(props: WalletProps) {
   const handlePaymentMethodSelect = async (method: PaymentMethod) => {
     setSelectedPaymentMethod(method)
     setSelectedWaffoMethodIndex(null)
-    setPaymentLoading(method.type)
+    setPaymentLoading(`${method.provider ?? 'epay'}:${method.type}`)
 
     try {
       // Validate minimum topup
@@ -200,6 +204,7 @@ export function Wallet(props: WalletProps) {
       selectedWaffoMethodIndex,
       {
         regular: processPayment,
+        xunhu: processXunhuPayment,
         waffo: processWaffoPayment,
         waffoPancake: processWaffoPancakePayment,
       }
@@ -207,7 +212,9 @@ export function Wallet(props: WalletProps) {
 
     if (success) {
       setConfirmDialogOpen(false)
-      await fetchUser()
+      if (selectedPaymentMethod.provider !== 'xunhu') {
+        await fetchUser()
+      }
     }
   }
 
@@ -384,6 +391,16 @@ export function Wallet(props: WalletProps) {
         onConfirm={handleCreemConfirm}
         product={selectedCreemProduct}
         processing={creemProcessing}
+      />
+      <XunhuCheckoutDialog
+        open={!!xunhuCheckout}
+        onOpenChange={(open) => {
+          if (!open) {
+            clearXunhuCheckout()
+            void fetchUser()
+          }
+        }}
+        checkout={xunhuCheckout}
       />
     </>
   )
