@@ -16,12 +16,24 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { describe, expect, test } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 
+import { requestXunhuPayment } from '../api'
 import { PAYMENT_TYPES } from '../constants'
-import { requestPaymentAmount } from './use-payment'
+import { requestPaymentAmount, usePayment } from './use-payment'
+
+vi.mock('../api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api')>()
+  return {
+    ...actual,
+    requestXunhuPayment: vi.fn(),
+  }
+})
 
 describe('payment amount routing', () => {
+  beforeEach(() => vi.mocked(requestXunhuPayment).mockReset())
+
   test('requests the Xunhu surcharge in the payment amount preview', async () => {
     const requests: {
       amount: number
@@ -83,5 +95,57 @@ describe('payment amount routing', () => {
 
     expect(preview).toEqual({ amount: 18.75 })
     expect(calls).toEqual(['waffo:120'])
+  })
+
+  test('redirects the reserved payment tab directly to Xunhu checkout', async () => {
+    vi.mocked(requestXunhuPayment).mockResolvedValue({
+      success: true,
+      data: {
+        url: 'https://pay.xunhupay.com/checkout',
+        url_qrcode: 'weixin://pay/order',
+      },
+    })
+    const paymentWindow = {
+      closed: false,
+      location: { href: 'about:blank' },
+      close: vi.fn(),
+    } as unknown as Window
+    const { result } = renderHook(() => usePayment())
+    let success = false
+
+    await act(async () => {
+      success = await result.current.processXunhuPayment(
+        10,
+        'wxpay',
+        paymentWindow
+      )
+    })
+
+    expect(success).toBe(true)
+    expect(paymentWindow.location.href).toBe(
+      'https://pay.xunhupay.com/checkout'
+    )
+    expect(paymentWindow.close).not.toHaveBeenCalled()
+    expect(result.current.xunhuCheckout).toBeNull()
+  })
+
+  test('shows the QR checkout when the browser blocks the reserved payment tab', async () => {
+    vi.mocked(requestXunhuPayment).mockResolvedValue({
+      success: true,
+      data: {
+        url: 'https://pay.xunhupay.com/checkout',
+        url_qrcode: 'weixin://pay/order',
+      },
+    })
+    const { result } = renderHook(() => usePayment())
+
+    await act(async () => {
+      await result.current.processXunhuPayment(10, 'wxpay', null)
+    })
+
+    expect(result.current.xunhuCheckout).toEqual({
+      url: 'https://pay.xunhupay.com/checkout',
+      url_qrcode: 'weixin://pay/order',
+    })
   })
 })

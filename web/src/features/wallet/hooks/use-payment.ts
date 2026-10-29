@@ -207,7 +207,11 @@ export function usePayment() {
   )
 
   const processXunhuPayment = useCallback(
-    async (topupAmount: number, paymentType: string) => {
+    async (
+      topupAmount: number,
+      paymentType: string,
+      paymentWindow?: Window | null
+    ) => {
       try {
         setProcessing(true)
         const response = await requestXunhuPayment({
@@ -218,12 +222,22 @@ export function usePayment() {
           !isApiSuccess(response) ||
           (!response.data?.url && !response.data?.url_qrcode)
         ) {
+          paymentWindow?.close()
           handleServerError(response, i18next.t('Payment request failed'))
           return false
         }
+
+        if (response.data.url && paymentWindow && !paymentWindow.closed) {
+          paymentWindow.location.href = response.data.url
+          setXunhuCheckout(null)
+          return true
+        }
+
+        paymentWindow?.close()
         setXunhuCheckout(response.data)
         return true
       } catch (error) {
+        paymentWindow?.close()
         handleServerError(error, i18next.t('Payment request failed'))
         return false
       } finally {
